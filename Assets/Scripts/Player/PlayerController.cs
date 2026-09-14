@@ -130,8 +130,12 @@ namespace Geayi.Player
             Color c;
             if (ColorUtility.TryParseHtmlString(hex, out c))
             {
-                // Material propio para no pintar a otros personajes
-                Material m = new Material(Shader.Find("Standard"));
+                // Material propio para no pintar a otros personajes.
+                // Usa el shader del material por defecto (Shader.Find puede fallar en el build).
+                GameObject tmp = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                Shader s = tmp.GetComponent<Renderer>().sharedMaterial.shader;
+                Destroy(tmp);
+                Material m = new Material(s);
                 m.color = c;
                 bodyRenderer.material = m;
             }
