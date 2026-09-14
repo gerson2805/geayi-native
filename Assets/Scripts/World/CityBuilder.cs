@@ -30,6 +30,20 @@ namespace Geayi.World
         private Material signMat;
         private Material signPoleMat;
 
+        // Shader garantizado: se toma del material por defecto de Unity
+        // (Shader.Find puede fallar si el shader fue optimizado fuera del build)
+        private static Shader safeShader;
+        private static Shader SafeShader()
+        {
+            if (safeShader == null)
+            {
+                GameObject tmp = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                safeShader = tmp.GetComponent<Renderer>().sharedMaterial.shader;
+                Destroy(tmp);
+            }
+            return safeShader;
+        }
+
         // Mallas reutilizadas (una sola de cada tipo)
         private Mesh cubeMesh;
         private Mesh cylMesh;
@@ -57,7 +71,7 @@ namespace Geayi.World
 
         private Material MakeMat(Color c, bool emissive = false)
         {
-            Material m = new Material(Shader.Find("Standard"));
+            Material m = new Material(SafeShader());
             m.color = c;
             if (emissive)
             {
