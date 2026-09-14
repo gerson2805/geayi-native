@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!129 &1
+PlayerSettings:
+  serializedVersion: 21
+  productGUID: 32d2d5ba4a574b93b4de1421b39db79b
+  AndroidBundleVersionCode: 1
+  AndroidMinSdkVersion: 24
+  AndroidTargetSdkVersion: 35
+  applicationIdentifier:
+    Android: com.geayi.obbyxtreme
+    Standalone: com.geayi.obbyxtreme
+  productName: GEAYI
+  companyName: Geayi Games
+  defaultScreenWidth: 1280
+  defaultScreenHeight: 720
+  runInBackground: 1
