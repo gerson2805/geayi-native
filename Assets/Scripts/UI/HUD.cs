@@ -82,6 +82,7 @@ namespace Geayi.UI
         private GameObject coinsLabel;
         private GameObject powerLabel;
         private PlayerController player;
+        private GameObject hudCanvasGo; // referencia directa (Find no ve objetos inactivos)
 
         void Awake()
         {
@@ -110,8 +111,7 @@ namespace Geayi.UI
         // Muestra u oculta todo el HUD
         public void SetVisible(bool visible)
         {
-            GameObject canvas = GameObject.Find("HUDCanvas");
-            if (canvas != null) canvas.SetActive(visible);
+            if (hudCanvasGo != null) hudCanvasGo.SetActive(visible);
         }
 
         private void EnsureEventSystem()
@@ -128,6 +128,7 @@ namespace Geayi.UI
         private void BuildHUD()
         {
             GameObject canvasGo = new GameObject("HUDCanvas");
+            hudCanvasGo = canvasGo; // guardar referencia directa
             Canvas canvas = canvasGo.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 10;
