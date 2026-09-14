@@ -97,7 +97,7 @@ namespace Geayi.UI
         {
             EnsureEventSystem();
             BuildHUD();
-            player = FindObjectOfType<PlayerController>();
+            player = FindAnyObjectByType<PlayerController>();
             if (player != null && Joystick != null)
                 player.joystick = Joystick;
             RefreshCoins();
@@ -106,7 +106,7 @@ namespace Geayi.UI
 
         private void EnsureEventSystem()
         {
-            if (FindObjectOfType<EventSystem>() == null)
+            if (FindAnyObjectByType<EventSystem>() == null)
             {
                 GameObject es = new GameObject("EventSystem");
                 es.AddComponent<EventSystem>();
