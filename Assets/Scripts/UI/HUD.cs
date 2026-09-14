@@ -102,6 +102,16 @@ namespace Geayi.UI
                 player.joystick = Joystick;
             RefreshCoins();
             RefreshPower();
+            // En el menú principal el HUD arranca oculto
+            if (GameManager.Instance != null && GameManager.Instance.State == GameState.Menu)
+                SetVisible(false);
+        }
+
+        // Muestra u oculta todo el HUD
+        public void SetVisible(bool visible)
+        {
+            GameObject canvas = GameObject.Find("HUDCanvas");
+            if (canvas != null) canvas.SetActive(visible);
         }
 
         private void EnsureEventSystem()
