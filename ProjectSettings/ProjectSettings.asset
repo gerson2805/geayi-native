@@ -8,6 +8,8 @@ PlayerSettings:
   AndroidMinSdkVersion: 24
   AndroidTargetSdkVersion: 35
   AndroidTargetArchitectures: 2
+  scriptingBackend:
+    Android: 1
   applicationIdentifier:
     Android: com.geayi.obbyxtreme
     Standalone: com.geayi.obbyxtreme
