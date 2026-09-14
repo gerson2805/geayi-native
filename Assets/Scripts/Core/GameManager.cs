@@ -96,29 +96,51 @@ namespace Geayi.Core
         // ---------------- Mundos / escenas ----------------
         public void LoadWorld(int index)
         {
-            if (worldScenes == null || worldScenes.Length == 0)
-            {
-                Debug.LogWarning("[GameManager] No hay mundos configurados.");
-                return;
-            }
-            index = Mathf.Clamp(index, 0, worldScenes.Length - 1);
             StartInBuild = false;
             SetState(GameState.Playing);
-            SceneManager.LoadScene(worldScenes[index]);
+            // Si la escena del mundo existe en el build, cargarla.
+            // Si no, quedarse en la escena actual (la ciudad ya está construida).
+            if (worldScenes != null && index >= 0 && index < worldScenes.Length)
+            {
+                string sceneName = worldScenes[index];
+                if (Application.CanStreamedLevelBeLoaded(sceneName))
+                {
+                    SceneManager.LoadScene(sceneName);
+                    return;
+                }
+            }
+            // Sin escena externa: ocultar el menú y jugar aquí mismo
+            HideMenu();
+            Debug.Log("[GameManager] Jugando en la escena actual.");
         }
 
         // Carga el mundo y arranca directo en modo construir
         public void LoadWorldBuild(int index)
         {
-            if (worldScenes == null || worldScenes.Length == 0)
-            {
-                Debug.LogWarning("[GameManager] No hay mundos configurados.");
-                return;
-            }
-            index = Mathf.Clamp(index, 0, worldScenes.Length - 1);
             StartInBuild = true;
             SetState(GameState.BuildMode);
-            SceneManager.LoadScene(worldScenes[index]);
+            if (worldScenes != null && index >= 0 && index < worldScenes.Length)
+            {
+                string sceneName = worldScenes[index];
+                if (Application.CanStreamedLevelBeLoaded(sceneName))
+                {
+                    SceneManager.LoadScene(sceneName);
+                    return;
+                }
+            }
+            HideMenu();
+            Debug.Log("[GameManager] Modo construir en la escena actual.");
+        }
+
+        // Oculta el canvas del menú principal (si existe)
+        private void HideMenu()
+        {
+            GameObject menu = GameObject.Find("MainMenuCanvas");
+            if (menu != null) menu.SetActive(false);
+            GameObject mm = GameObject.Find("MainMenu");
+            if (mm != null) mm.SetActive(false);
+            // Mostrar el HUD de juego
+            if (UI.HUD.Instance != null) UI.HUD.Instance.SetVisible(true);
         }
 
         public void GoToMenu()
