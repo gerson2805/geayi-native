@@ -30,16 +30,20 @@ namespace Geayi.World
         private Material signMat;
         private Material signPoleMat;
 
-        // Shader garantizado: se toma del material por defecto de Unity
-        // (Shader.Find puede fallar si el shader fue optimizado fuera del build)
+        // Shader garantizado: "UI/Default" siempre está incluido en el build
+        // (lo usa el Canvas del menú). Los shaders 3D fueron optimizados fuera.
         private static Shader safeShader;
         private static Shader SafeShader()
         {
             if (safeShader == null)
             {
-                GameObject tmp = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                safeShader = tmp.GetComponent<Renderer>().sharedMaterial.shader;
-                Destroy(tmp);
+                safeShader = Shader.Find("UI/Default");
+                if (safeShader == null)
+                {
+                    GameObject tmp = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    safeShader = tmp.GetComponent<Renderer>().sharedMaterial.shader;
+                    Destroy(tmp);
+                }
             }
             return safeShader;
         }
