@@ -45,6 +45,9 @@ namespace Geayi.UI
         public void OnDrag(PointerEventData eventData)
         {
             if (baseRt == null) return;
+            // Solo el dedo que activó el joystick lo mueve (como en la web:
+            // se ignora por su identifier). Otro dedo en la zona no lo corrompe.
+            if (IsActive && ActivePointerId >= 0 && eventData.pointerId != ActivePointerId) return;
             Vector2 local;
             if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
                     baseRt, eventData.position, eventData.pressEventCamera, out local))
@@ -62,6 +65,8 @@ namespace Geayi.UI
 
         public void OnPointerUp(PointerEventData eventData)
         {
+            // Solo el dedo activo puede soltar el joystick
+            if (IsActive && ActivePointerId >= 0 && eventData.pointerId != ActivePointerId) return;
             ActivePointerId = -1;
             ClearInput();
         }
