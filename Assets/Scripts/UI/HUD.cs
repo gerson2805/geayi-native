@@ -376,23 +376,20 @@ namespace Geayi.UI
         // Mueve la base del joystick al punto del toque y lo activa
         public void JoystickDownAt(PointerEventData eventData)
         {
-            if (joystickBaseRt == null || Joystick == null || hudCanvasRt == null) return;
+            if (joystickBaseRt == null || Joystick == null || hudCanvasGo == null) return;
             // Como en la web: el joystick aparece donde cae el dedo
             if (!joystickBaseRt.gameObject.activeSelf)
                 joystickBaseRt.gameObject.SetActive(true);
-            Vector2 local;
-            if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                    hudCanvasRt, eventData.position, eventData.pressEventCamera, out local))
-            {
-                // 'local' se mide desde el centro del canvas (pivote 0.5,0.5);
-                // la base usa anclas (0,0) en la esquina inferior izquierda.
-                Vector2 size = hudCanvasRt.rect.size;
-                Vector2 pos = local + size * 0.5f;
-                float r = 160f; // mitad de la base (320x320): no salir de la pantalla
-                pos.x = Mathf.Clamp(pos.x, r, size.x - r);
-                pos.y = Mathf.Clamp(pos.y, r, size.y - r);
-                joystickBaseRt.anchoredPosition = pos;
-            }
+            // Posición directa en píxeles de pantalla (el canvas es
+            // ScreenSpaceOverlay, así que la posición del mundo es la pantalla):
+            // el centro de la base queda justo bajo el dedo.
+            Canvas c = hudCanvasGo.GetComponent<Canvas>();
+            float sf = (c != null && c.scaleFactor > 0f) ? c.scaleFactor : 1f;
+            float r = 160f * sf; // mitad de la base (320x320), en píxeles
+            Vector2 p = eventData.position;
+            p.x = Mathf.Clamp(p.x, r, Screen.width - r);
+            p.y = Mathf.Clamp(p.y, r, Screen.height - r);
+            joystickBaseRt.position = p;
             Joystick.OnPointerDown(eventData);
         }
 
