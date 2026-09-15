@@ -34,8 +34,9 @@ namespace Geayi.Player
         void Awake()
         {
             cc = GetComponent<CharacterController>();
+            if (cc == null) cc = gameObject.AddComponent<CharacterController>();
             gameObject.tag = "Player";
-            EnsureBody();               // crea el capsule si no existe
+            EnsureBody();               // crea el avatar del personaje elegido
             ApplyBodyColor(bodyColorHex);
         }
 
@@ -47,21 +48,27 @@ namespace Geayi.Player
                 joystick = HUD.Instance.Joystick;
         }
 
-        // Crea el cuerpo (capsule) si el prefab viene vacío
+        // Crea el avatar 3D del personaje de la familia elegido en el menú
+        // (se guarda en SaveSystem.Data.characterId; por defecto: gerson).
         private void EnsureBody()
         {
-            Transform body = transform.Find("Body");
-            if (body == null)
-            {
-                GameObject capsule = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-                capsule.name = "Body";
-                capsule.transform.SetParent(transform);
-                capsule.transform.localPosition = new Vector3(0f, 1f, 0f);
-                // El CharacterController ya maneja las colisiones: quitamos la del capsule
-                Destroy(capsule.GetComponent<Collider>());
-                body = capsule.transform;
-            }
-            bodyRenderer = body.GetComponent<Renderer>();
+            if (transform.Find("Body") != null) return; // ya existe
+            string charId = "gerson";
+            if (Geayi.Core.SaveSystem.Instance != null &&
+                !string.IsNullOrEmpty(Geayi.Core.SaveSystem.Instance.Data.characterId))
+                charId = Geayi.Core.SaveSystem.Instance.Data.characterId;
+            var def = Geayi.Characters.FamilyData.Get(charId);
+            GameObject avatar = Geayi.Characters.CharacterBuilder.Build(def);
+            avatar.transform.SetParent(transform, false);
+            avatar.transform.localPosition = Vector3.zero;
+            avatar.transform.localRotation = Quaternion.identity;
+            // bodyRenderer apunta al torso para que ApplyBodyColor repinte la camisa
+            Transform torso = avatar.transform.Find("Torso");
+            if (torso == null && avatar.transform.childCount > 0)
+                torso = avatar.transform.GetChild(0);
+            if (torso != null)
+                bodyRenderer = torso.GetComponent<Renderer>();
+            bodyColorHex = def.shirt;
         }
 
         void Update()
