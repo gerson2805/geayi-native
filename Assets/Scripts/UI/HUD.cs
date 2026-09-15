@@ -79,6 +79,16 @@ namespace Geayi.UI
             return IsActive && ActivePointerId >= 0 && pointerId == ActivePointerId;
         }
 
+        // Centro de la base en píxeles de pantalla (el canvas es Overlay, así
+        // que la posición del RectTransform ya viene en píxeles). La cámara lo
+        // usa para ignorar el dedo del joystick POR POSICIÓN, sin depender de
+        // que los IDs del EventSystem coincidan con los del Touch.
+        public Vector2 CurrentBaseCenterScreenPos()
+        {
+            if (baseRt == null) return Vector2.zero;
+            return baseRt.position;
+        }
+
         // Limpia el estado (al volver al menú a mitad de un arrastre)
         public void ClearInput()
         {
@@ -127,6 +137,7 @@ namespace Geayi.UI
         private GameObject hudCanvasGo; // referencia directa (Find no ve objetos inactivos)
         private RectTransform hudCanvasRt; // rect del canvas (para el joystick flotante)
         private RectTransform joystickBaseRt; // para saber si un dedo está sobre el joystick
+        private RectTransform joystickKnobRt; // palanca (se ajusta al tamaño de pantalla)
 
         // ¿Este toque de pantalla cae sobre el joystick? (la cámara lo ignora, como en la web)
         public bool IsTouchOnJoystick(Vector2 screenPos)
@@ -318,7 +329,7 @@ namespace Geayi.UI
             // joystick. Con pivote en la esquina, todo delta salía positivo y el
             // muñeco solo caminaba en una dirección diagonal.
             joyRt.pivot = new Vector2(0.5f, 0.5f);
-            joyRt.sizeDelta = new Vector2(320f, 320f);
+            joyRt.sizeDelta = new Vector2(320f, 320f); // se corrige a px de pantalla en SizeJoystickForScreen()
             joyRt.anchoredPosition = new Vector2(200f, 200f); // 40 + 160
 
             GameObject knob = new GameObject("Knob");
@@ -332,14 +343,16 @@ namespace Geayi.UI
             RectTransform knobRt = knob.GetComponent<RectTransform>();
             knobRt.anchorMin = new Vector2(0.5f, 0.5f);
             knobRt.anchorMax = new Vector2(0.5f, 0.5f);
-            knobRt.sizeDelta = new Vector2(90f, 90f);
+            knobRt.sizeDelta = new Vector2(90f, 90f); // se corrige en SizeJoystickForScreen()
             knobRt.anchoredPosition = Vector2.zero;
+            joystickKnobRt = knobRt;
 
             VirtualJoystick joy = joyBase.AddComponent<VirtualJoystick>();
-            joy.radius = 110f;
+            joy.radius = 110f; // se corrige en SizeJoystickForScreen()
             joy.Setup(joyBase.GetComponent<RectTransform>(), knobRt);
             Joystick = joy;
             joyBase.SetActive(false); // como en la web: aparece donde cae el dedo
+            SizeJoystickForScreen();
 
             // Zona táctil flotante: el joystick aparece donde cae el dedo
             BuildTouchZone();
@@ -378,19 +391,51 @@ namespace Geayi.UI
             zone.transform.SetAsFirstSibling();
         }
 
+        // Tamaño del joystick en PÍXELES DE PANTALLA fijos, sin importar la
+        // resolución: con ScaleWithScreenSize la base de 320 unidades se veía
+        // gigante (más de la mitad de la pantalla en la tablet).
+        private void SizeJoystickForScreen()
+        {
+            if (hudCanvasGo == null || joystickBaseRt == null || Joystick == null) return;
+            float sf = 1f;
+            CanvasScaler scaler = hudCanvasGo.GetComponent<CanvasScaler>();
+            if (scaler != null && scaler.uiScaleMode == CanvasScaler.ScaleMode.ScaleWithScreenSize)
+            {
+                Vector2 refRes = scaler.referenceResolution;
+                if (refRes.x > 0f && refRes.y > 0f)
+                    sf = Mathf.Lerp(Screen.width / refRes.x, Screen.height / refRes.y,
+                                    scaler.matchWidthOrHeight);
+            }
+            else
+            {
+                Canvas c = hudCanvasGo.GetComponent<Canvas>();
+                if (c != null && c.scaleFactor > 0f) sf = c.scaleFactor;
+            }
+            if (sf <= 0f) sf = 1f;
+            const float basePx = 340f;  // diámetro de la base en pantalla
+            const float knobPx = 150f;  // diámetro de la palanca en pantalla
+            const float dragPx = 130f;  // recorrido máximo del dedo en pantalla
+            joystickBaseRt.sizeDelta = new Vector2(basePx / sf, basePx / sf);
+            if (joystickKnobRt != null)
+                joystickKnobRt.sizeDelta = new Vector2(knobPx / sf, knobPx / sf);
+            Joystick.radius = dragPx / sf;
+        }
+
         // Mueve la base del joystick al punto del toque y lo activa
         public void JoystickDownAt(PointerEventData eventData)
         {
             if (joystickBaseRt == null || Joystick == null || hudCanvasGo == null) return;
+            // Si un dedo ya maneja el joystick, otro dedo en la zona NO lo mueve:
+            // antes la base saltaba al segundo dedo y la dirección se volvía loca.
+            if (Joystick.IsActive) return;
+            SizeJoystickForScreen();
             // Como en la web: el joystick aparece donde cae el dedo
             if (!joystickBaseRt.gameObject.activeSelf)
                 joystickBaseRt.gameObject.SetActive(true);
             // Posición directa en píxeles de pantalla (el canvas es
             // ScreenSpaceOverlay, así que la posición del mundo es la pantalla):
             // el centro de la base queda justo bajo el dedo.
-            Canvas c = hudCanvasGo.GetComponent<Canvas>();
-            float sf = (c != null && c.scaleFactor > 0f) ? c.scaleFactor : 1f;
-            float r = 160f * sf; // mitad de la base (320x320), en píxeles
+            const float r = 170f; // mitad de la base (340px), en píxeles
             Vector2 p = eventData.position;
             p.x = Mathf.Clamp(p.x, r, Screen.width - r);
             p.y = Mathf.Clamp(p.y, r, Screen.height - r);
