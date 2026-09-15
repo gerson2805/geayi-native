@@ -43,8 +43,21 @@ namespace Geayi.Core
             Instance = this;
             DontDestroyOnLoad(gameObject);
 
-            // Cargar monedas guardadas
-            Coins = PlayerPrefs.GetInt(CoinsKey, 0);
+            // SaveSystem (personaje elegido, poderes, bloques): crearlo si la
+            // escena no lo trae. Su Awake carga el JSON guardado.
+            if (SaveSystem.Instance == null)
+            {
+                GameObject s = new GameObject("SaveSystem");
+                s.AddComponent<SaveSystem>();
+            }
+            // Monedas: el JSON manda; migrar la llave vieja una sola vez
+            int oldCoins = PlayerPrefs.GetInt(CoinsKey, 0);
+            if (oldCoins > 0 && SaveSystem.Instance.Data.coins == 0)
+            {
+                SaveSystem.Instance.Data.coins = oldCoins;
+                SaveSystem.Instance.Save();
+            }
+            Coins = SaveSystem.Instance.Data.coins;
 
             // Calidad automática según el teléfono
             // (respeta el modo rápido si el jugador lo activó antes)
