@@ -44,15 +44,17 @@ namespace Geayi.Player
         void Update()
         {
             // Arrastrar con un dedo (que NO sea el del joystick) gira la cámara, como en la web.
-            // El dedo del joystick se identifica por su ID, no por su posición:
-            // al girar el dedo en 360° sale del cuadrado del joystick y antes la
-            // cámara creía que era un dedo de giro y se iba a otro lado.
+            // El dedo del joystick se ignora POR POSICIÓN (distancia al centro de la
+            // base): así funciona con cualquier módulo de entrada, sin depender de
+            // que los IDs del EventSystem coincidan con los del Touch.
+            var joy = (HUD.Instance != null) ? HUD.Instance.Joystick : null;
             for (int i = 0; i < Input.touchCount; i++)
             {
                 Touch t = Input.GetTouch(i);
                 if (t.phase != TouchPhase.Moved) continue;
-                if (HUD.Instance != null && HUD.Instance.Joystick != null &&
-                    HUD.Instance.Joystick.IsJoystickPointer(t.fingerId)) continue;
+                if (joy != null && joy.IsActive &&
+                    Vector2.Distance(t.position, joy.CurrentBaseCenterScreenPos()) < 320f) continue;
+                if (joy != null && joy.IsJoystickPointer(t.fingerId)) continue;
                 if (HUD.Instance != null && HUD.Instance.IsTouchOnJoystick(t.position)) continue;
                 camYaw -= t.deltaPosition.x * 0.25f;
             }
