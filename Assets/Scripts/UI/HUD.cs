@@ -137,15 +137,15 @@ namespace Geayi.UI
             scaler.referenceResolution = new Vector2(720, 1280);
             canvasGo.AddComponent<GraphicRaycaster>();
 
-            // Monedas (arriba a la izquierda)
-            coinsLabel = UILabel.CreateLabel(canvasGo.transform, "🪙 0", 36, Color.white);
+            // Monedas (arriba a la izquierda) — texto simple, sin emoji
+            coinsLabel = UILabel.CreateLabel(canvasGo.transform, "MONEDAS: 0", 32, Color.white);
             Anchor(coinsLabel.GetComponent<RectTransform>(),
-                new Vector2(0f, 0.92f), new Vector2(0.45f, 1f));
+                new Vector2(0f, 0.92f), new Vector2(0.55f, 1f));
 
             // Botón de poder equipado (lado derecho, tocable)
             GameObject powerBtn = MakeButton(canvasGo.transform, new Color(0.10f, 0.45f, 0.90f),
                 new Vector2(0.80f, 0.52f), new Vector2(0.98f, 0.70f));
-            powerLabel = UILabel.CreateLabel(powerBtn.transform, "🌀", 54, Color.white);
+            powerLabel = UILabel.CreateLabel(powerBtn.transform, "PODER", 30, Color.white);
             StretchFull(powerLabel.GetComponent<RectTransform>());
             powerBtn.GetComponent<Button>().onClick.AddListener(() =>
             {
@@ -156,14 +156,14 @@ namespace Geayi.UI
             // Botón de mascotas (encima del salto)
             GameObject petBtn = MakeButton(canvasGo.transform, new Color(0.35f, 0.20f, 0.60f),
                 new Vector2(0.80f, 0.30f), new Vector2(0.98f, 0.46f));
-            GameObject petLabel = UILabel.CreateLabel(petBtn.transform, "🐾", 54, Color.white);
+            GameObject petLabel = UILabel.CreateLabel(petBtn.transform, "MASCOTA", 30, Color.white);
             StretchFull(petLabel.GetComponent<RectTransform>());
             petBtn.GetComponent<Button>().onClick.AddListener(() => onPetsPressed.Invoke());
 
             // Botón de salto (abajo a la derecha)
             GameObject jumpBtn = MakeButton(canvasGo.transform, new Color(0.15f, 0.70f, 0.30f),
                 new Vector2(0.80f, 0.03f), new Vector2(0.98f, 0.24f));
-            GameObject jumpLabel = UILabel.CreateLabel(jumpBtn.transform, "⬆", 54, Color.white);
+            GameObject jumpLabel = UILabel.CreateLabel(jumpBtn.transform, "SALTAR", 30, Color.white);
             StretchFull(jumpLabel.GetComponent<RectTransform>());
             jumpBtn.GetComponent<Button>().onClick.AddListener(() =>
             {
@@ -174,13 +174,17 @@ namespace Geayi.UI
             // Joystick virtual (abajo a la izquierda)
             GameObject joyBase = new GameObject("Joystick");
             joyBase.transform.SetParent(canvasGo.transform, false);
-            joyBase.AddComponent<Image>().color = new Color(1f, 1f, 1f, 0.25f);
+            Image joyImg = joyBase.AddComponent<Image>();
+            joyImg.sprite = UIShape.Circle();
+            joyImg.color = new Color(1f, 1f, 1f, 0.25f);
             Anchor(joyBase.GetComponent<RectTransform>(),
                 new Vector2(0.03f, 0.03f), new Vector2(0.33f, 0.33f));
 
             GameObject knob = new GameObject("Knob");
             knob.transform.SetParent(joyBase.transform, false);
-            knob.AddComponent<Image>().color = new Color(1f, 1f, 1f, 0.60f);
+            Image knobImg = knob.AddComponent<Image>();
+            knobImg.sprite = UIShape.Circle();
+            knobImg.color = new Color(1f, 1f, 1f, 0.60f);
             RectTransform knobRt = knob.GetComponent<RectTransform>();
             knobRt.anchorMin = new Vector2(0.5f, 0.5f);
             knobRt.anchorMax = new Vector2(0.5f, 0.5f);
@@ -197,7 +201,9 @@ namespace Geayi.UI
         {
             GameObject go = new GameObject("UIButton");
             go.transform.SetParent(parent, false);
-            go.AddComponent<Image>().color = color;
+            Image img = go.AddComponent<Image>();
+            img.sprite = UIShape.Rounded();
+            img.color = color;
             go.AddComponent<Button>();
             Anchor(go.GetComponent<RectTransform>(), anchorMin, anchorMax);
             return go;
@@ -223,12 +229,12 @@ namespace Geayi.UI
         public void RefreshCoins()
         {
             int coins = (GameManager.Instance != null) ? GameManager.Instance.Coins : 0;
-            UILabel.SetText(coinsLabel, "🪙 " + coins);
+            UILabel.SetText(coinsLabel, "MONEDAS: " + coins);
         }
 
         public void RefreshPower()
         {
-            UILabel.SetText(powerLabel, PowerEmoji(CurrentPowerName()));
+            UILabel.SetText(powerLabel, PowerShortName(CurrentPowerName()));
         }
 
         private string CurrentPowerName()
@@ -238,17 +244,18 @@ namespace Geayi.UI
             return "";
         }
 
-        private string PowerEmoji(string powerId)
+        // Nombre corto del poder para el botón (texto: los emoji no se ven en Android)
+        private string PowerShortName(string powerId)
         {
             switch (powerId)
             {
-                case "giro": return "🌀";
-                case "bola": return "🔵";
-                case "telarana": return "🕸️";
-                case "estrella": return "⭐";
-                case "onda": return "💥";
-                case "vuelo": return "🦸";
-                default: return "⚡";
+                case "giro": return "GIRO";
+                case "bola": return "BOLA";
+                case "telarana": return "RED";
+                case "estrella": return "LUZ";
+                case "onda": return "ONDA";
+                case "vuelo": return "VUELO";
+                default: return "PODER";
             }
         }
     }
