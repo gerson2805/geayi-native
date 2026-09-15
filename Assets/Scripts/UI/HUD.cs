@@ -116,6 +116,7 @@ namespace Geayi.UI
             }
         }
         private GameObject hudCanvasGo; // referencia directa (Find no ve objetos inactivos)
+        private RectTransform hudCanvasRt; // rect del canvas (para el joystick flotante)
         private RectTransform joystickBaseRt; // para saber si un dedo está sobre el joystick
 
         // ¿Este toque de pantalla cae sobre el joystick? (la cámara lo ignora, como en la web)
@@ -166,12 +167,15 @@ namespace Geayi.UI
             hudToastObj.transform.SetParent(hudCanvasGo.transform, false);
             Image bgi = hudToastObj.AddComponent<Image>(); // convierte a RectTransform
             bgi.color = new Color(0f, 0f, 0f, 0.75f);
+            bgi.raycastTarget = false; // el aviso no debe bloquear los toques
             RectTransform rt = hudToastObj.GetComponent<RectTransform>();
             rt.anchorMin = new Vector2(0.10f, 0.80f);
             rt.anchorMax = new Vector2(0.72f, 0.90f);
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero;
             hudToastText = UILabel.CreateLabel(hudToastObj.transform, msg, 30, Color.white);
+            var toastGraphic = hudToastText.GetComponent<MaskableGraphic>();
+            if (toastGraphic != null) toastGraphic.raycastTarget = false;
             StretchFull(hudToastText.GetComponent<RectTransform>());
             hudToastObj.SetActive(false);
         }
@@ -210,6 +214,7 @@ namespace Geayi.UI
         {
             GameObject canvasGo = new GameObject("HUDCanvas");
             hudCanvasGo = canvasGo; // guardar referencia directa
+            hudCanvasRt = canvasGo.GetComponent<RectTransform>();
             Canvas canvas = canvasGo.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 10;
@@ -220,6 +225,8 @@ namespace Geayi.UI
 
             // Monedas (arriba a la izquierda) — texto simple, sin emoji
             coinsLabel = UILabel.CreateLabel(canvasGo.transform, "MONEDAS: 0", 32, Color.white);
+            var coinsGraphic = coinsLabel.GetComponent<MaskableGraphic>();
+            if (coinsGraphic != null) coinsGraphic.raycastTarget = false; // no bloquea toques
             Anchor(coinsLabel.GetComponent<RectTransform>(),
                 new Vector2(0f, 0.92f), new Vector2(0.55f, 1f));
 
@@ -324,6 +331,9 @@ namespace Geayi.UI
             joy.Setup(joyBase.GetComponent<RectTransform>(), knobRt);
             Joystick = joy;
 
+            // Zona táctil flotante: el joystick aparece donde cae el dedo
+            BuildTouchZone();
+
             // El aviso se crea desde el inicio (no en el primer toque)
             EnsureHudToast("");
         }
@@ -332,6 +342,69 @@ namespace Geayi.UI
         public void ResetInput()
         {
             if (Joystick != null) Joystick.ClearInput();
+        }
+
+        // -----------------------------------------------------------
+        // Joystick FLOTANTE: una zona invisible en la mitad izquierda hace
+        // que el joystick aparezca justo donde cae el dedo. Así los giros
+        // de 360° siempre quedan sobre el joystick y la cámara ya no los
+        // confunde con gestos de giro (aunque el dedo salga del cuadrito).
+        // -----------------------------------------------------------
+        private void BuildTouchZone()
+        {
+            GameObject zone = new GameObject("TouchZone");
+            zone.transform.SetParent(hudCanvasGo.transform, false);
+            RectTransform rt = zone.AddComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0f, 0f);
+            rt.anchorMax = new Vector2(0.55f, 1f);
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+            Image img = zone.AddComponent<Image>();
+            img.color = new Color(0f, 0f, 0f, 0f); // invisible pero tocable
+            img.raycastTarget = true;
+            zone.AddComponent<TouchZoneForwarder>().Setup(this);
+            // Detrás de todo (joystick y botones tienen prioridad)
+            zone.transform.SetAsFirstSibling();
+        }
+
+        // Mueve la base del joystick al punto del toque y lo activa
+        public void JoystickDownAt(PointerEventData eventData)
+        {
+            if (joystickBaseRt == null || Joystick == null || hudCanvasRt == null) return;
+            Vector2 local;
+            if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    hudCanvasRt, eventData.position, eventData.pressEventCamera, out local))
+            {
+                // 'local' se mide desde el centro del canvas (pivote 0.5,0.5);
+                // la base usa anclas (0,0) en la esquina inferior izquierda.
+                Vector2 size = hudCanvasRt.rect.size;
+                Vector2 pos = local + size * 0.5f;
+                float r = 160f; // mitad de la base (320x320): no salir de la pantalla
+                pos.x = Mathf.Clamp(pos.x, r, size.x - r);
+                pos.y = Mathf.Clamp(pos.y, r, size.y - r);
+                joystickBaseRt.anchoredPosition = pos;
+            }
+            Joystick.OnPointerDown(eventData);
+        }
+
+        // Reenvía los toques de la zona invisible al joystick
+        private class TouchZoneForwarder : MonoBehaviour,
+            IPointerDownHandler, IDragHandler, IPointerUpHandler
+        {
+            private HUD hud;
+            public void Setup(HUD h) { hud = h; }
+            public void OnPointerDown(PointerEventData eventData)
+            {
+                if (hud != null) hud.JoystickDownAt(eventData);
+            }
+            public void OnDrag(PointerEventData eventData)
+            {
+                if (hud != null && hud.Joystick != null) hud.Joystick.OnDrag(eventData);
+            }
+            public void OnPointerUp(PointerEventData eventData)
+            {
+                if (hud != null && hud.Joystick != null) hud.Joystick.OnPointerUp(eventData);
+            }
         }
 
         private GameObject MakeButton(Transform parent, Color color, Vector2 anchorMin, Vector2 anchorMax)
