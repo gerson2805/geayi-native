@@ -20,7 +20,10 @@ namespace Geayi.Player
         [Header("Colisiones")]
         [Tooltip("Capas que la cámara no debe atravesar (paredes, edificios)")]
         public LayerMask collisionMask = -1; // todo por defecto
-        public float minDistance = 1f;
+        [Tooltip("La cámara nunca se pega más que esto a la cabeza del jugador")]
+        public float minDistance = 2.5f;
+
+        private bool snapped = false; // primer frame: colocarse directo, sin deslizar
 
         void Start()
         {
@@ -56,7 +59,16 @@ namespace Geayi.Player
             }
 
             // Movimiento suave + mirar al jugador
-            transform.position = Vector3.Lerp(transform.position, desired, smoothSpeed * Time.deltaTime);
+            // (el primer frame se coloca directo para no arrastrar desde el menú)
+            if (!snapped)
+            {
+                transform.position = desired;
+                snapped = true;
+            }
+            else
+            {
+                transform.position = Vector3.Lerp(transform.position, desired, smoothSpeed * Time.deltaTime);
+            }
             transform.LookAt(lookAt);
         }
     }
