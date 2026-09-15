@@ -36,6 +36,7 @@ namespace Geayi.UI
 
         public void OnPointerDown(PointerEventData eventData)
         {
+            if (IsActive) return; // un dedo ya lo maneja: no robar el control
             IsActive = true;
             ActivePointerId = eventData.pointerId;
             OnDrag(eventData);
@@ -82,6 +83,9 @@ namespace Geayi.UI
             ActivePointerId = -1;
             if (knobRt != null)
                 knobRt.anchoredPosition = Vector2.zero;
+            // Como en la web: al soltar, el joystick se esconde
+            if (gameObject != null)
+                gameObject.SetActive(false);
         }
     }
 
@@ -330,6 +334,7 @@ namespace Geayi.UI
             joy.radius = 110f;
             joy.Setup(joyBase.GetComponent<RectTransform>(), knobRt);
             Joystick = joy;
+            joyBase.SetActive(false); // como en la web: aparece donde cae el dedo
 
             // Zona táctil flotante: el joystick aparece donde cae el dedo
             BuildTouchZone();
@@ -355,8 +360,9 @@ namespace Geayi.UI
             GameObject zone = new GameObject("TouchZone");
             zone.transform.SetParent(hudCanvasGo.transform, false);
             RectTransform rt = zone.AddComponent<RectTransform>();
+            // Como en la web: zona abajo a la izquierda (45% x 60%)
             rt.anchorMin = new Vector2(0f, 0f);
-            rt.anchorMax = new Vector2(0.55f, 1f);
+            rt.anchorMax = new Vector2(0.45f, 0.60f);
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero;
             Image img = zone.AddComponent<Image>();
@@ -371,6 +377,9 @@ namespace Geayi.UI
         public void JoystickDownAt(PointerEventData eventData)
         {
             if (joystickBaseRt == null || Joystick == null || hudCanvasRt == null) return;
+            // Como en la web: el joystick aparece donde cae el dedo
+            if (!joystickBaseRt.gameObject.activeSelf)
+                joystickBaseRt.gameObject.SetActive(true);
             Vector2 local;
             if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
                     hudCanvasRt, eventData.position, eventData.pressEventCamera, out local))
