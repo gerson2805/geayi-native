@@ -57,6 +57,12 @@ namespace Geayi.UI
 
         public void OnPointerUp(PointerEventData eventData)
         {
+            ClearInput();
+        }
+
+        // Limpia el estado (al volver al menú a mitad de un arrastre)
+        public void ClearInput()
+        {
             Horizontal = 0f;
             Vertical = 0f;
             IsActive = false;
@@ -73,9 +79,10 @@ namespace Geayi.UI
         public static HUD Instance { get; private set; }
 
         [Header("Eventos (se conectan en el Inspector o por código)")]
-        public UnityEvent onPowerPressed;
-        public UnityEvent onPetsPressed;
-        public UnityEvent onJumpPressed;
+        // Inicializados explícitos: si quedan nulos, los botones mueren en silencio.
+        public UnityEvent onPowerPressed = new UnityEvent();
+        public UnityEvent onPetsPressed = new UnityEvent();
+        public UnityEvent onJumpPressed = new UnityEvent();
 
         public VirtualJoystick Joystick { get; private set; }
 
@@ -137,25 +144,30 @@ namespace Geayi.UI
         private GameObject hudToastObj;
         private GameObject hudToastText;
         private float hudToastTimer;
+        // Crea el aviso una sola vez al armar el HUD (no en el primer toque)
+        private void EnsureHudToast(string msg)
+        {
+            if (hudCanvasGo == null || hudToastObj != null) return;
+            hudToastObj = new GameObject("HudToast");
+            hudToastObj.transform.SetParent(hudCanvasGo.transform, false);
+            Image bgi = hudToastObj.AddComponent<Image>(); // convierte a RectTransform
+            bgi.color = new Color(0f, 0f, 0f, 0.75f);
+            RectTransform rt = hudToastObj.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0.10f, 0.80f);
+            rt.anchorMax = new Vector2(0.72f, 0.90f);
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+            hudToastText = UILabel.CreateLabel(hudToastObj.transform, msg, 30, Color.white);
+            StretchFull(hudToastText.GetComponent<RectTransform>());
+            hudToastObj.SetActive(false);
+        }
         // Aviso breve en pantalla (para que cada toque dé respuesta visible)
         private void ShowHudToast(string msg)
         {
             if (hudCanvasGo == null) return;
-            if (hudToastObj == null)
-            {
-                hudToastObj = new GameObject("HudToast");
-                hudToastObj.transform.SetParent(hudCanvasGo.transform, false);
-                Image bgi = hudToastObj.AddComponent<Image>(); // convierte a RectTransform
-                bgi.color = new Color(0f, 0f, 0f, 0.75f);
-                RectTransform rt = hudToastObj.GetComponent<RectTransform>();
-                rt.anchorMin = new Vector2(0.15f, 0.80f);
-                rt.anchorMax = new Vector2(0.85f, 0.90f);
-                rt.offsetMin = Vector2.zero;
-                rt.offsetMax = Vector2.zero;
-                hudToastText = UILabel.CreateLabel(hudToastObj.transform, msg, 30, Color.white);
-                StretchFull(hudToastText.GetComponent<RectTransform>());
-            }
-            else UILabel.SetText(hudToastText, msg);
+            EnsureHudToast(msg);
+            if (hudToastObj == null) return;
+            UILabel.SetText(hudToastText, msg);
             hudToastObj.SetActive(true);
             hudToastTimer = 1.6f;
         }
@@ -204,10 +216,14 @@ namespace Geayi.UI
             StretchFull(powerLabel.GetComponent<RectTransform>());
             powerBtn.GetComponent<Button>().onClick.AddListener(() =>
             {
-                onPowerPressed.Invoke();
-                ShowHudToast(string.IsNullOrEmpty(CurrentPowerName())
-                    ? "Sin poder equipado"
-                    : "Poder: " + CurrentPowerName());
+                try
+                {
+                    onPowerPressed.Invoke();
+                    ShowHudToast(string.IsNullOrEmpty(CurrentPowerName())
+                        ? "Sin poder equipado"
+                        : "Poder: " + CurrentPowerName());
+                }
+                catch (System.Exception e) { ShowHudToast("Error: " + e.Message); }
             });
 
             // Botón de mascotas (encima del salto)
@@ -217,8 +233,27 @@ namespace Geayi.UI
             StretchFull(petLabel.GetComponent<RectTransform>());
             petBtn.GetComponent<Button>().onClick.AddListener(() =>
             {
-                onPetsPressed.Invoke();
-                ShowHudToast("Mascotas: disponible pronto");
+                try
+                {
+                    onPetsPressed.Invoke();
+                    ShowHudToast("Mascotas: disponible pronto");
+                }
+                catch (System.Exception e) { ShowHudToast("Error: " + e.Message); }
+            });
+
+            // Botón MENÚ (arriba a la derecha): volver para elegir otro personaje
+            GameObject menuBtn = MakeButton(canvasGo.transform, new Color(0.45f, 0.45f, 0.50f),
+                new Vector2(0.80f, 0.78f), new Vector2(0.98f, 0.92f));
+            GameObject menuLabel = UILabel.CreateLabel(menuBtn.transform, "MENÚ", 30, Color.white);
+            StretchFull(menuLabel.GetComponent<RectTransform>());
+            menuBtn.GetComponent<Button>().onClick.AddListener(() =>
+            {
+                try
+                {
+                    if (GameManager.Instance != null) GameManager.Instance.ReturnToMenu();
+                    else ShowHudToast("Error: sin GameManager");
+                }
+                catch (System.Exception e) { ShowHudToast("Error: " + e.Message); }
             });
 
             // Botón de salto (abajo a la derecha)
@@ -228,9 +263,14 @@ namespace Geayi.UI
             StretchFull(jumpLabel.GetComponent<RectTransform>());
             jumpBtn.GetComponent<Button>().onClick.AddListener(() =>
             {
-                onJumpPressed.Invoke();
-                var p = Player; // tardío: el jugador puede haberse activado después del HUD
-                if (p != null) p.TryJump();
+                try
+                {
+                    onJumpPressed.Invoke();
+                    var p = Player; // tardío: el jugador puede haberse activado después del HUD
+                    if (p != null) p.TryJump();
+                    else ShowHudToast("Error: sin jugador");
+                }
+                catch (System.Exception e) { ShowHudToast("Error: " + e.Message); }
             });
 
             // Joystick virtual (abajo a la izquierda)
@@ -244,9 +284,12 @@ namespace Geayi.UI
             joystickBaseRt = joyRt;
             joyRt.anchorMin = new Vector2(0f, 0f);
             joyRt.anchorMax = new Vector2(0f, 0f);
-            joyRt.pivot = new Vector2(0f, 0f);
+            // Pivote al CENTRO: las coordenadas locales (0,0) son el centro del
+            // joystick. Con pivote en la esquina, todo delta salía positivo y el
+            // muñeco solo caminaba en una dirección diagonal.
+            joyRt.pivot = new Vector2(0.5f, 0.5f);
             joyRt.sizeDelta = new Vector2(320f, 320f);
-            joyRt.anchoredPosition = new Vector2(40f, 40f);
+            joyRt.anchoredPosition = new Vector2(200f, 200f); // 40 + 160
 
             GameObject knob = new GameObject("Knob");
             knob.transform.SetParent(joyBase.transform, false);
@@ -263,6 +306,15 @@ namespace Geayi.UI
             joy.radius = 110f;
             joy.Setup(joyBase.GetComponent<RectTransform>(), knobRt);
             Joystick = joy;
+
+            // El aviso se crea desde el inicio (no en el primer toque)
+            EnsureHudToast("");
+        }
+
+        // Limpia el joystick (al volver al menú a mitad de un arrastre)
+        public void ResetInput()
+        {
+            if (Joystick != null) Joystick.ClearInput();
         }
 
         private GameObject MakeButton(Transform parent, Color color, Vector2 anchorMin, Vector2 anchorMax)
