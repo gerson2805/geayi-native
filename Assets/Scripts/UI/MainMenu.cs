@@ -269,7 +269,10 @@ namespace Geayi.UI
 
                 familyGrid = new GameObject("FamilyGrid");
                 familyGrid.transform.SetParent(familyPanel.transform, false);
-                StretchFull(familyGrid.GetComponent<RectTransform>());
+                // OJO: un GameObject nuevo trae Transform normal; hay que convertirlo
+                // a RectTransform o los botones hijos salen con tamaño cero (invisibles).
+                RectTransform gridRt = familyGrid.AddComponent<RectTransform>();
+                StretchFull(gridRt);
 
                 familyPageLabel = UILabel.CreateLabel(familyPanel.transform, "", 28, Color.yellow);
                 RectTransform prt = familyPageLabel.GetComponent<RectTransform>();
