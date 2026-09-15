@@ -30,6 +30,8 @@ namespace Geayi.Player
         private Vector3 verticalVel;
         private bool jumpQueued = false;
         private Renderer bodyRenderer;
+        // Joystick suavizado estilo la web (evita que el personaje dé vueltas al caminar)
+        private Vector2 joySmooth = Vector2.zero;
 
         void Awake()
         {
@@ -73,14 +75,29 @@ namespace Geayi.Player
 
         void Update()
         {
+            // Por si el HUD se creó después que el jugador: tomar el joystick tarde
+            if (joystick == null && Geayi.UI.HUD.Instance != null)
+                joystick = Geayi.UI.HUD.Instance.Joystick;
+
             // --- Entrada: teclado (PC/editor) o joystick táctil (móvil) ---
             float h = Input.GetAxis("Horizontal");
             float v = Input.GetAxis("Vertical");
             if (joystick != null && joystick.IsActive)
             {
-                h = joystick.Horizontal;
-                v = joystick.Vertical;
+                // Igual que la web: zona muerta (ignora temblores) + reescala 0..1
+                // + suavizado pasa-bajos (el personaje camina estable en vez de girar brusco)
+                Vector2 raw = new Vector2(joystick.Horizontal, joystick.Vertical);
+                float m = raw.magnitude;
+                const float DEAD = 0.22f;
+                if (m < DEAD) raw = Vector2.zero;
+                else raw = raw.normalized * Mathf.Min(1f, (m - DEAD) / (1f - DEAD));
+                float k = 1f - Mathf.Pow(1f - 0.35f, Time.deltaTime * 60f); // 0.35 como la web a 60fps
+                joySmooth += (raw - joySmooth) * k;
+                if (joySmooth.magnitude < 0.04f) joySmooth = Vector2.zero;
+                h = joySmooth.x;
+                v = joySmooth.y;
             }
+            else { joySmooth = Vector2.zero; }
 
             Vector2 input = new Vector2(h, v);
             if (input.sqrMagnitude > 1f) input.Normalize();
