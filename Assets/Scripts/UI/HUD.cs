@@ -82,7 +82,27 @@ namespace Geayi.UI
         private GameObject coinsLabel;
         private GameObject powerLabel;
         private PlayerController player;
+        // El jugador puede activarse DESPUÉS que el HUD (al pulsar JUGAR):
+        // resolverlo tarde, no solo en Start, o SALTAR nunca lo encuentra.
+        private PlayerController Player
+        {
+            get
+            {
+                if (player == null) player = FindAnyObjectByType<PlayerController>();
+                if (player != null && Joystick != null && player.joystick == null)
+                    player.joystick = Joystick;
+                return player;
+            }
+        }
         private GameObject hudCanvasGo; // referencia directa (Find no ve objetos inactivos)
+        private RectTransform joystickBaseRt; // para saber si un dedo está sobre el joystick
+
+        // ¿Este toque de pantalla cae sobre el joystick? (la cámara lo ignora, como en la web)
+        public bool IsTouchOnJoystick(Vector2 screenPos)
+        {
+            if (joystickBaseRt == null) return false;
+            return RectTransformUtility.RectangleContainsScreenPoint(joystickBaseRt, screenPos, null);
+        }
 
         void Awake()
         {
@@ -98,9 +118,9 @@ namespace Geayi.UI
         {
             EnsureEventSystem();
             BuildHUD();
-            player = FindAnyObjectByType<PlayerController>();
-            if (player != null && Joystick != null)
-                player.joystick = Joystick;
+            var p = Player; // resolución tardía por si el jugador aún no está activo
+            if (p != null && Joystick != null)
+                p.joystick = Joystick;
             RefreshCoins();
             RefreshPower();
             // En el menú principal el HUD arranca oculto
@@ -112,6 +132,41 @@ namespace Geayi.UI
         public void SetVisible(bool visible)
         {
             if (hudCanvasGo != null) hudCanvasGo.SetActive(visible);
+        }
+
+        private GameObject hudToastObj;
+        private GameObject hudToastText;
+        private float hudToastTimer;
+        // Aviso breve en pantalla (para que cada toque dé respuesta visible)
+        private void ShowHudToast(string msg)
+        {
+            if (hudCanvasGo == null) return;
+            if (hudToastObj == null)
+            {
+                hudToastObj = new GameObject("HudToast");
+                hudToastObj.transform.SetParent(hudCanvasGo.transform, false);
+                Image bgi = hudToastObj.AddComponent<Image>(); // convierte a RectTransform
+                bgi.color = new Color(0f, 0f, 0f, 0.75f);
+                RectTransform rt = hudToastObj.GetComponent<RectTransform>();
+                rt.anchorMin = new Vector2(0.15f, 0.80f);
+                rt.anchorMax = new Vector2(0.85f, 0.90f);
+                rt.offsetMin = Vector2.zero;
+                rt.offsetMax = Vector2.zero;
+                hudToastText = UILabel.CreateLabel(hudToastObj.transform, msg, 30, Color.white);
+                StretchFull(hudToastText.GetComponent<RectTransform>());
+            }
+            else UILabel.SetText(hudToastText, msg);
+            hudToastObj.SetActive(true);
+            hudToastTimer = 1.6f;
+        }
+
+        void Update()
+        {
+            if (hudToastObj != null && hudToastObj.activeSelf)
+            {
+                hudToastTimer -= Time.deltaTime;
+                if (hudToastTimer <= 0f) hudToastObj.SetActive(false);
+            }
         }
 
         private void EnsureEventSystem()
@@ -150,7 +205,9 @@ namespace Geayi.UI
             powerBtn.GetComponent<Button>().onClick.AddListener(() =>
             {
                 onPowerPressed.Invoke();
-                Debug.Log("[HUD] Poder activado: " + CurrentPowerName());
+                ShowHudToast(string.IsNullOrEmpty(CurrentPowerName())
+                    ? "Sin poder equipado"
+                    : "Poder: " + CurrentPowerName());
             });
 
             // Botón de mascotas (encima del salto)
@@ -158,7 +215,11 @@ namespace Geayi.UI
                 new Vector2(0.80f, 0.30f), new Vector2(0.98f, 0.46f));
             GameObject petLabel = UILabel.CreateLabel(petBtn.transform, "MASCOTA", 22, Color.white);
             StretchFull(petLabel.GetComponent<RectTransform>());
-            petBtn.GetComponent<Button>().onClick.AddListener(() => onPetsPressed.Invoke());
+            petBtn.GetComponent<Button>().onClick.AddListener(() =>
+            {
+                onPetsPressed.Invoke();
+                ShowHudToast("Mascotas: disponible pronto");
+            });
 
             // Botón de salto (abajo a la derecha)
             GameObject jumpBtn = MakeButton(canvasGo.transform, new Color(0.15f, 0.70f, 0.30f),
@@ -168,7 +229,8 @@ namespace Geayi.UI
             jumpBtn.GetComponent<Button>().onClick.AddListener(() =>
             {
                 onJumpPressed.Invoke();
-                if (player != null) player.TryJump();
+                var p = Player; // tardío: el jugador puede haberse activado después del HUD
+                if (p != null) p.TryJump();
             });
 
             // Joystick virtual (abajo a la izquierda)
@@ -179,6 +241,7 @@ namespace Geayi.UI
             joyImg.sprite = UIShape.Circle();
             joyImg.color = new Color(1f, 1f, 1f, 0.25f);
             RectTransform joyRt = joyBase.GetComponent<RectTransform>();
+            joystickBaseRt = joyRt;
             joyRt.anchorMin = new Vector2(0f, 0f);
             joyRt.anchorMax = new Vector2(0f, 0f);
             joyRt.pivot = new Vector2(0f, 0f);
