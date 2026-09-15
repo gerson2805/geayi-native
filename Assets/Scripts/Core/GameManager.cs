@@ -2,6 +2,7 @@
 // Maneja: estados del juego, monedas, cambio de mundos y calidad gráfica automática.
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using Geayi.Player;
 
 namespace Geayi.Core
 {
@@ -152,8 +153,39 @@ namespace Geayi.Core
             if (menu != null) menu.SetActive(false);
             GameObject mm = GameObject.Find("MainMenu");
             if (mm != null) mm.SetActive(false);
+            // Reactivar al jugador con el personaje recién elegido en FAMILIA
+            var pcs = FindObjectsByType<PlayerController>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            if (pcs != null && pcs.Length > 0)
+            {
+                var pc = pcs[0];
+                pc.gameObject.SetActive(true);
+                pc.RebuildBody();   // el personaje elegido se vuelve el avatar
+                pc.GoHome();        // empezar desde el inicio del mundo
+            }
             // Mostrar el HUD de juego
             if (UI.HUD.Instance != null) UI.HUD.Instance.SetVisible(true);
+        }
+
+        // Volver al menú principal SIN cargar escena (todo ocurre en la misma
+        // escena). Desde el menú se puede abrir FAMILIA y elegir otro personaje.
+        public void ReturnToMenu()
+        {
+            SetState(GameState.Menu);
+            Time.timeScale = 1f;
+            // Soltar el joystick por si se quedó a mitad de un arrastre
+            if (UI.HUD.Instance != null)
+            {
+                UI.HUD.Instance.ResetInput();
+                UI.HUD.Instance.SetVisible(false);
+            }
+            // Ocultar al jugador
+            var pcs = FindObjectsByType<PlayerController>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            if (pcs != null && pcs.Length > 0) pcs[0].gameObject.SetActive(false);
+            // Mostrar el menú principal
+            GameObject menu = GameObject.Find("MainMenuCanvas");
+            if (menu != null) menu.SetActive(true);
+            GameObject mm = GameObject.Find("MainMenu");
+            if (mm != null) mm.SetActive(true);
         }
 
         public void GoToMenu()
