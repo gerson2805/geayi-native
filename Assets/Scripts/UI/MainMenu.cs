@@ -248,39 +248,48 @@ namespace Geayi.UI
             Image bg = familyPanel.AddComponent<Image>();
             bg.color = new Color(0f, 0f, 0f, 0.88f);
             StretchFull(familyPanel.GetComponent<RectTransform>());
+            familyPanel.SetActive(false); // oculto desde el inicio
 
-            GameObject title = UILabel.CreateLabel(familyPanel.transform, "ELIGE TU PERSONAJE", 40, Color.white);
-            RectTransform trt = title.GetComponent<RectTransform>();
-            trt.anchorMin = new Vector2(0.05f, 0.87f);
-            trt.anchorMax = new Vector2(0.95f, 0.95f);
-            trt.offsetMin = Vector2.zero;
-            trt.offsetMax = Vector2.zero;
+            try
+            {
+                GameObject title = UILabel.CreateLabel(familyPanel.transform, "ELIGE TU PERSONAJE", 40, Color.white);
+                RectTransform trt = title.GetComponent<RectTransform>();
+                trt.anchorMin = new Vector2(0.05f, 0.87f);
+                trt.anchorMax = new Vector2(0.95f, 0.95f);
+                trt.offsetMin = Vector2.zero;
+                trt.offsetMax = Vector2.zero;
 
-            familyGrid = new GameObject("FamilyGrid");
-            familyGrid.transform.SetParent(familyPanel.transform, false);
-            StretchFull(familyGrid.GetComponent<RectTransform>());
+                // Botones de navegación PRIMERO: CERRAR siempre existe aunque algo falle después
+                MakePanelButton(familyPanel.transform, "<", 0.04f, 0.06f, 0.30f, 0.14f,
+                    new Color(0.25f, 0.25f, 0.35f), 40, () => ShowFamilyPage(familyPage - 1));
+                MakePanelButton(familyPanel.transform, "CERRAR", 0.35f, 0.06f, 0.65f, 0.14f,
+                    new Color(0.70f, 0.25f, 0.25f), 32, () => CloseFamilyPanel());
+                MakePanelButton(familyPanel.transform, ">", 0.70f, 0.06f, 0.96f, 0.14f,
+                    new Color(0.25f, 0.25f, 0.35f), 40, () => ShowFamilyPage(familyPage + 1));
 
-            familyPageLabel = UILabel.CreateLabel(familyPanel.transform, "", 28, Color.yellow);
-            RectTransform prt = familyPageLabel.GetComponent<RectTransform>();
-            prt.anchorMin = new Vector2(0.30f, 0.165f);
-            prt.anchorMax = new Vector2(0.70f, 0.215f);
-            prt.offsetMin = Vector2.zero;
-            prt.offsetMax = Vector2.zero;
+                familyGrid = new GameObject("FamilyGrid");
+                familyGrid.transform.SetParent(familyPanel.transform, false);
+                StretchFull(familyGrid.GetComponent<RectTransform>());
 
-            MakePanelButton(familyPanel.transform, "<", 0.04f, 0.06f, 0.30f, 0.14f,
-                new Color(0.25f, 0.25f, 0.35f), 40, () => ShowFamilyPage(familyPage - 1));
-            MakePanelButton(familyPanel.transform, "CERRAR", 0.35f, 0.06f, 0.65f, 0.14f,
-                new Color(0.70f, 0.25f, 0.25f), 32, () => CloseFamilyPanel());
-            MakePanelButton(familyPanel.transform, ">", 0.70f, 0.06f, 0.96f, 0.14f,
-                new Color(0.25f, 0.25f, 0.35f), 40, () => ShowFamilyPage(familyPage + 1));
-
-            familyPanel.SetActive(false);
+                familyPageLabel = UILabel.CreateLabel(familyPanel.transform, "", 28, Color.yellow);
+                RectTransform prt = familyPageLabel.GetComponent<RectTransform>();
+                prt.anchorMin = new Vector2(0.30f, 0.165f);
+                prt.anchorMax = new Vector2(0.70f, 0.215f);
+                prt.offsetMin = Vector2.zero;
+                prt.offsetMax = Vector2.zero;
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError("[FAMILIA] Error armando panel: " + e);
+            }
+            familyPanel.SetActive(false); // por si algo falló, nunca queda trabado abierto
         }
 
         private void OpenFamilyPanel()
         {
-            ShowFamilyPage(0);
+            if (familyPanel == null) return;
             familyPanel.SetActive(true);
+            ShowFamilyPage(0);
         }
 
         private void CloseFamilyPanel()
@@ -290,41 +299,63 @@ namespace Geayi.UI
 
         private void ShowFamilyPage(int page)
         {
-            var all = Geayi.Characters.FamilyData.All;
-            int pages = (all.Count + FamilyPerPage - 1) / FamilyPerPage;
-            if (pages < 1) pages = 1;
-            if (page < 0) page = pages - 1;
-            if (page >= pages) page = 0;
-            familyPage = page;
-
-            // Limpiar cuadrícula
-            for (int i = familyGrid.transform.childCount - 1; i >= 0; i--)
-                Destroy(familyGrid.transform.GetChild(i).gameObject);
-
-            string selectedId = "";
-            if (SaveSystem.Instance != null) selectedId = SaveSystem.Instance.Data.characterId;
-
-            int start = page * FamilyPerPage;
-            int end = Mathf.Min(start + FamilyPerPage, all.Count);
-            for (int i = start; i < end; i++)
+            try
             {
-                var def = all[i];
-                int slot = i - start;
-                int col = slot % 2;
-                int row = slot / 2;
-                float x0 = col == 0 ? 0.04f : 0.52f;
-                float x1 = col == 0 ? 0.48f : 0.96f;
-                float y1 = 0.84f - row * 0.15f;
-                float y0 = y1 - 0.13f;
-                Color c = (def.id == selectedId)
-                    ? new Color(0.15f, 0.65f, 0.30f)   // elegido: verde
-                    : new Color(0.15f, 0.45f, 0.95f);  // normal: azul
-                string id = def.id;   // copias para el listener
-                string nm = def.name;
-                MakePanelButton(familyGrid.transform, nm, x0, y0, x1, y1, c, 30,
-                    () => SelectCharacter(id, nm));
+                var all = Geayi.Characters.FamilyData.All;
+                if (all == null || all.Count == 0)
+                    throw new System.Exception("lista de personajes vacía");
+                int pages = (all.Count + FamilyPerPage - 1) / FamilyPerPage;
+                if (pages < 1) pages = 1;
+                if (page < 0) page = pages - 1;
+                if (page >= pages) page = 0;
+                familyPage = page;
+
+                // Limpiar cuadrícula
+                if (familyGrid != null)
+                {
+                    for (int i = familyGrid.transform.childCount - 1; i >= 0; i--)
+                        Destroy(familyGrid.transform.GetChild(i).gameObject);
+                }
+
+                string selectedId = "";
+                if (SaveSystem.Instance != null) selectedId = SaveSystem.Instance.Data.characterId;
+
+                int start = page * FamilyPerPage;
+                int end = Mathf.Min(start + FamilyPerPage, all.Count);
+                for (int i = start; i < end; i++)
+                {
+                    var def = all[i];
+                    int slot = i - start;
+                    int col = slot % 2;
+                    int row = slot / 2;
+                    float x0 = col == 0 ? 0.04f : 0.52f;
+                    float x1 = col == 0 ? 0.48f : 0.96f;
+                    float y1 = 0.84f - row * 0.15f;
+                    float y0 = y1 - 0.13f;
+                    Color c = (def.id == selectedId)
+                        ? new Color(0.15f, 0.65f, 0.30f)   // elegido: verde
+                        : new Color(0.15f, 0.45f, 0.95f);  // normal: azul
+                    string id = def.id;   // copias para el listener
+                    string nm = def.name;
+                    MakePanelButton(familyGrid.transform, nm, x0, y0, x1, y1, c, 30,
+                        () => SelectCharacter(id, nm));
+                }
+                UILabel.SetText(familyPageLabel, (page + 1) + "/" + pages);
             }
-            UILabel.SetText(familyPageLabel, (page + 1) + "/" + pages);
+            catch (System.Exception e)
+            {
+                Debug.LogError("[FAMILIA] Error mostrando página: " + e);
+                // Mostrar el error EN PANTALLA para diagnosticar con una captura
+                if (familyGrid != null)
+                {
+                    for (int i = familyGrid.transform.childCount - 1; i >= 0; i--)
+                        Destroy(familyGrid.transform.GetChild(i).gameObject);
+                }
+                if (familyPageLabel != null)
+                    UILabel.SetText(familyPageLabel, "Error: " + e.Message);
+                else
+                    ShowToast("Error FAMILIA: " + e.Message);
+            }
         }
 
         private void SelectCharacter(string id, string name)
