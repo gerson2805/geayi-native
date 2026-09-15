@@ -13,7 +13,7 @@ namespace Geayi.Player
 
         [Header("Posición")]
         [Tooltip("Offset detrás/arriba del jugador (en su espacio local)")]
-        public Vector3 offset = new Vector3(0f, 3.5f, -6.5f);
+        public Vector3 offset = new Vector3(0f, 4.5f, -9.0f);
         public float smoothSpeed = 8f;
         public float lookHeight = 1.5f;
 
