@@ -141,6 +141,11 @@ namespace Geayi.Player
             jumpQueued = false;
             verticalVel.y += gravity * Time.deltaTime;
             cc.Move(verticalVel * Time.deltaTime);
+
+            // Red de seguridad: si se cae al vacío, reaparece en el inicio
+            // en vez de quedar perdido fuera del mundo.
+            if (transform.position.y < -25f)
+                Teleport(spawnPos);
         }
 
         // Lo llama el botón de salto del HUD
