@@ -56,6 +56,65 @@ namespace Geayi.UI
         }
     }
 
+    // Ayudante: sprites procedurales para que los botones se vean redondos.
+    // Se generan una vez con Texture2D (blancos) y se tiñen con Image.color.
+    // (La fuente de Unity en Android no trae emoji de colores, por eso los
+    // botones usan texto en vez de 🌀🐾🪙.)
+    public static class UIShape
+    {
+        private static Sprite rounded;
+        private static Sprite circle;
+
+        // Rectángulo con esquinas redondeadas
+        public static Sprite Rounded()
+        {
+            if (rounded != null) return rounded;
+            int s = 128; float r = 30f;
+            Texture2D tex = new Texture2D(s, s, TextureFormat.RGBA32, false);
+            tex.filterMode = FilterMode.Bilinear;
+            for (int y = 0; y < s; y++)
+                for (int x = 0; x < s; x++)
+                {
+                    float dx = Mathf.Max(Mathf.Max(r - x, x - (s - 1 - r)), 0f);
+                    float dy = Mathf.Max(Mathf.Max(r - y, y - (s - 1 - r)), 0f);
+                    float d = Mathf.Sqrt(dx * dx + dy * dy);
+                    float a = 1f;
+                    if (d > r) a = 0f;
+                    else if (d > r - 2f) a = (r - d) / 2f;
+                    tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+                }
+            tex.Apply();
+            rounded = Sprite.Create(tex, new Rect(0, 0, s, s),
+                new Vector2(0.5f, 0.5f), s, 0, SpriteMeshType.FullRect);
+            rounded.name = "GeayiRounded";
+            return rounded;
+        }
+
+        // Círculo (para el joystick)
+        public static Sprite Circle()
+        {
+            if (circle != null) return circle;
+            int s = 128; float r = 62f;
+            Texture2D tex = new Texture2D(s, s, TextureFormat.RGBA32, false);
+            tex.filterMode = FilterMode.Bilinear;
+            Vector2 c = new Vector2((s - 1) / 2f, (s - 1) / 2f);
+            for (int y = 0; y < s; y++)
+                for (int x = 0; x < s; x++)
+                {
+                    float d = Vector2.Distance(new Vector2(x, y), c);
+                    float a = 1f;
+                    if (d > r) a = 0f;
+                    else if (d > r - 2f) a = (r - d) / 2f;
+                    tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+                }
+            tex.Apply();
+            circle = Sprite.Create(tex, new Rect(0, 0, s, s),
+                new Vector2(0.5f, 0.5f), s, 0, SpriteMeshType.FullRect);
+            circle.name = "GeayiCircle";
+            return circle;
+        }
+    }
+
     public class MainMenu : MonoBehaviour
     {
         [Header("Título del juego")]
@@ -105,8 +164,8 @@ namespace Geayi.UI
             trt.offsetMin = Vector2.zero;
             trt.offsetMax = Vector2.zero;
 
-            // Botones principales
-            string[] names = { "▶ JUGAR", "🧱 MODO CONSTRUIR", "🎨 PERSONALIZAR", "🛒 TIENDA", "⚙️ AJUSTES" };
+            // Botones principales (texto simple: la fuente de Android no trae emoji)
+            string[] names = { "JUGAR", "MODO CONSTRUIR", "PERSONALIZAR", "TIENDA", "AJUSTES" };
             for (int i = 0; i < names.Length; i++)
             {
                 int idx = i; // copia para el listener
@@ -128,7 +187,9 @@ namespace Geayi.UI
         {
             GameObject go = new GameObject("Btn");
             go.transform.SetParent(parent, false);
-            go.AddComponent<Image>().color = new Color(0.15f, 0.45f, 0.95f);
+            Image img = go.AddComponent<Image>();
+            img.sprite = UIShape.Rounded();
+            img.color = new Color(0.15f, 0.45f, 0.95f);
             Button b = go.AddComponent<Button>();
             RectTransform rt = go.GetComponent<RectTransform>();
             rt.anchorMin = new Vector2(0.2f, yCenter - 0.045f);
@@ -161,7 +222,7 @@ namespace Geayi.UI
                     GameManager.Instance.LoadWorldBuild(0);
                     break;
                 default: // PERSONALIZAR, TIENDA, AJUSTES
-                    ShowToast("Disponible pronto 🔧");
+                    ShowToast("Disponible pronto");
                     break;
             }
         }
