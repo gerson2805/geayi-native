@@ -123,6 +123,9 @@ namespace Geayi.UI
         [Header("Título del juego")]
         public string gameTitle = "GEAYI: Obby Xtreme 3D";
 
+        public static MainMenu Instance { get; private set; }
+        private GameObject menuCanvasGo; // el canvas creado en BuildMenu
+
         private GameObject toastObj;
         private float toastTimer = 0f;
 
@@ -140,8 +143,18 @@ namespace Geayi.UI
 
         void Start()
         {
+            Instance = this;
             EnsureEventSystem();
             BuildMenu();
+        }
+
+        // Muestra u oculta el menú completo (canvas + este objeto).
+        // Se usa referencia directa porque GameObject.Find NO ve objetos
+        // inactivos: al volver del juego el menú nunca reaparecía.
+        public void SetMenuVisible(bool visible)
+        {
+            if (menuCanvasGo != null) menuCanvasGo.SetActive(visible);
+            gameObject.SetActive(visible);
         }
 
         private void EnsureEventSystem()
@@ -158,6 +171,7 @@ namespace Geayi.UI
         {
             // Canvas principal
             GameObject canvasGo = new GameObject("MainMenuCanvas");
+            menuCanvasGo = canvasGo; // referencia directa para mostrar/ocultar
             Canvas canvas = canvasGo.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             CanvasScaler scaler = canvasGo.AddComponent<CanvasScaler>();
@@ -380,8 +394,10 @@ namespace Geayi.UI
             previewCam.nearClipPlane = 0.1f;
             previewCam.farClipPlane = 50f;
             previewCam.enabled = false; // solo dibuja cuando se le pide
-            camGo.transform.position = new Vector3(0f, 1.05f, -2.8f);
-            camGo.transform.LookAt(new Vector3(0f, 0.95f, 0f));
+            // Los personajes miran hacia +Z (los ojos están al frente): la cámara
+            // va DELANTE (+Z). Atrás solo se veía la nuca en las fotos.
+            camGo.transform.position = new Vector3(0f, 1.0f, 3.0f);
+            camGo.transform.LookAt(new Vector3(0f, 0.9f, 0f));
             // La cámara del juego no debe ver esta capa
             if (Camera.main != null)
                 Camera.main.cullingMask &= ~(1 << PREVIEW_LAYER);
@@ -461,8 +477,10 @@ namespace Geayi.UI
             prt.offsetMin = Vector2.zero;
             prt.offsetMax = Vector2.zero;
 
-            // Nombre (abajo)
-            GameObject label = UILabel.CreateLabel(go.transform, def.name, 26, Color.white);
+            // Nombre (abajo). Los largos (ESMERALDA) con letra más chica
+            // para que queden en una sola línea.
+            int nameSize = def.name.Length > 7 ? 20 : 26;
+            GameObject label = UILabel.CreateLabel(go.transform, def.name, nameSize, Color.white);
             RectTransform lrt = label.GetComponent<RectTransform>();
             lrt.anchorMin = new Vector2(0.02f, 0.02f);
             lrt.anchorMax = new Vector2(0.98f, 0.28f);
