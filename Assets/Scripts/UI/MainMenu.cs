@@ -5,7 +5,9 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Events;
 using UnityEngine.EventSystems;
+using System.Collections.Generic;
 using Geayi.Core;
+using Geayi.Characters;
 
 namespace Geayi.UI
 {
@@ -130,6 +132,11 @@ namespace Geayi.UI
         private GameObject familyPageLabel;
         private int familyPage = 0;
         private const int FamilyPerPage = 8;
+
+        // Previsualización 3D de los personajes (una foto por celda)
+        private const int PREVIEW_LAYER = 30; // capa que la cámara principal no ve
+        private Camera previewCam;
+        private readonly List<RenderTexture> previewRTs = new List<RenderTexture>();
 
         void Start()
         {
@@ -319,29 +326,26 @@ namespace Geayi.UI
                     for (int i = familyGrid.transform.childCount - 1; i >= 0; i--)
                         Destroy(familyGrid.transform.GetChild(i).gameObject);
                 }
+                ReleasePreviews(); // liberar las fotos 3D de la página anterior
 
                 string selectedId = "";
                 if (SaveSystem.Instance != null) selectedId = SaveSystem.Instance.Data.characterId;
 
+                // 8 por página: 4 columnas x 2 filas (celdas altas para la foto 3D)
                 int start = page * FamilyPerPage;
                 int end = Mathf.Min(start + FamilyPerPage, all.Count);
                 for (int i = start; i < end; i++)
                 {
                     var def = all[i];
                     int slot = i - start;
-                    int col = slot % 2;
-                    int row = slot / 2;
-                    float x0 = col == 0 ? 0.04f : 0.52f;
-                    float x1 = col == 0 ? 0.48f : 0.96f;
-                    float y1 = 0.84f - row * 0.15f;
-                    float y0 = y1 - 0.13f;
-                    Color c = (def.id == selectedId)
-                        ? new Color(0.15f, 0.65f, 0.30f)   // elegido: verde
-                        : new Color(0.15f, 0.45f, 0.95f);  // normal: azul
-                    string id = def.id;   // copias para el listener
-                    string nm = def.name;
-                    MakePanelButton(familyGrid.transform, nm, x0, y0, x1, y1, c, 30,
-                        () => SelectCharacter(id, nm));
+                    int col = slot % 4;
+                    int row = slot / 4;
+                    float x0 = 0.03f + col * 0.235f;
+                    float x1 = x0 + 0.225f;
+                    float y1 = 0.82f - row * 0.30f;
+                    float y0 = y1 - 0.28f;
+                    MakeFamilyCell(familyGrid.transform, def, x0, y0, x1, y1,
+                        def.id == selectedId);
                 }
                 UILabel.SetText(familyPageLabel, (page + 1) + "/" + pages);
             }
@@ -359,6 +363,115 @@ namespace Geayi.UI
                 else
                     ShowToast("Error FAMILIA: " + e.Message);
             }
+        }
+
+        // ---------------- Foto 3D de cada personaje ----------------
+        // Cámara dedicada que dibuja los avatares en una capa que la cámara
+        // principal no ve: la foto sale limpia, sin la ciudad detrás.
+        private void EnsurePreviewRig()
+        {
+            if (previewCam != null) return;
+            GameObject camGo = new GameObject("FamilyPreviewCam");
+            previewCam = camGo.AddComponent<Camera>();
+            previewCam.cullingMask = 1 << PREVIEW_LAYER;
+            previewCam.clearFlags = CameraClearFlags.SolidColor;
+            previewCam.backgroundColor = new Color(0.10f, 0.14f, 0.28f); // azul del menú
+            previewCam.fieldOfView = 38f;
+            previewCam.nearClipPlane = 0.1f;
+            previewCam.farClipPlane = 50f;
+            previewCam.enabled = false; // solo dibuja cuando se le pide
+            camGo.transform.position = new Vector3(0f, 1.05f, -2.8f);
+            camGo.transform.LookAt(new Vector3(0f, 0.95f, 0f));
+            // La cámara del juego no debe ver esta capa
+            if (Camera.main != null)
+                Camera.main.cullingMask &= ~(1 << PREVIEW_LAYER);
+        }
+
+        private static void SetLayerRec(GameObject go, int layer)
+        {
+            go.layer = layer;
+            for (int i = 0; i < go.transform.childCount; i++)
+                SetLayerRec(go.transform.GetChild(i).gameObject, layer);
+        }
+
+        private void ReleasePreviews()
+        {
+            for (int i = 0; i < previewRTs.Count; i++)
+            {
+                if (previewRTs[i] != null)
+                {
+                    previewRTs[i].Release();
+                    Destroy(previewRTs[i]);
+                }
+            }
+            previewRTs.Clear();
+        }
+
+        // Dibuja el avatar del personaje en la textura de su celda
+        private void RenderPreview(CharacterDef def, RenderTexture rt)
+        {
+            try
+            {
+                EnsurePreviewRig();
+                GameObject avatar = CharacterBuilder.Build(def);
+                SetLayerRec(avatar, PREVIEW_LAYER);
+                avatar.transform.position = Vector3.zero;
+                avatar.transform.rotation = Quaternion.identity;
+                previewCam.targetTexture = rt;
+                previewCam.Render();
+                previewCam.targetTexture = null;
+                Destroy(avatar);
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError("[FAMILIA] Error en foto 3D: " + e);
+            }
+        }
+
+        // Celda de personaje: foto 3D arriba + nombre abajo. Toda la celda se toca.
+        private void MakeFamilyCell(Transform parent, CharacterDef def,
+            float x0, float y0, float x1, float y1, bool selected)
+        {
+            GameObject go = new GameObject("Cell");
+            go.transform.SetParent(parent, false);
+            Image img = go.AddComponent<Image>();
+            img.sprite = UIShape.Rounded();
+            img.color = selected
+                ? new Color(0.15f, 0.65f, 0.30f)   // elegido: verde
+                : new Color(0.15f, 0.45f, 0.95f);  // normal: azul
+            Button b = go.AddComponent<Button>();
+            RectTransform rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(x0, y0);
+            rt.anchorMax = new Vector2(x1, y1);
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+
+            // Foto 3D del personaje (arriba)
+            RenderTexture rtex = new RenderTexture(160, 180, 16);
+            rtex.Create();
+            previewRTs.Add(rtex);
+            RenderPreview(def, rtex);
+            GameObject photoGo = new GameObject("Photo");
+            photoGo.transform.SetParent(go.transform, false);
+            RawImage photo = photoGo.AddComponent<RawImage>();
+            photo.texture = rtex;
+            RectTransform prt = photoGo.GetComponent<RectTransform>();
+            prt.anchorMin = new Vector2(0.04f, 0.30f);
+            prt.anchorMax = new Vector2(0.96f, 0.97f);
+            prt.offsetMin = Vector2.zero;
+            prt.offsetMax = Vector2.zero;
+
+            // Nombre (abajo)
+            GameObject label = UILabel.CreateLabel(go.transform, def.name, 26, Color.white);
+            RectTransform lrt = label.GetComponent<RectTransform>();
+            lrt.anchorMin = new Vector2(0.02f, 0.02f);
+            lrt.anchorMax = new Vector2(0.98f, 0.28f);
+            lrt.offsetMin = Vector2.zero;
+            lrt.offsetMax = Vector2.zero;
+
+            string id = def.id;   // copias para el listener
+            string nm = def.name;
+            b.onClick.AddListener(() => SelectCharacter(id, nm));
         }
 
         private void SelectCharacter(string id, string name)
