@@ -30,6 +30,8 @@ namespace Geayi.Player
         private Vector3 verticalVel;
         private bool jumpQueued = false;
         private Renderer bodyRenderer;
+        private Vector3 spawnPos;
+        private Quaternion spawnRot;
         // Joystick suavizado estilo la web (evita que el personaje dé vueltas al caminar)
         private Vector2 joySmooth = Vector2.zero;
 
@@ -38,6 +40,8 @@ namespace Geayi.Player
             cc = GetComponent<CharacterController>();
             if (cc == null) cc = gameObject.AddComponent<CharacterController>();
             gameObject.tag = "Player";
+            spawnPos = transform.position;   // punto de inicio (para volver al entrar)
+            spawnRot = transform.rotation;
             EnsureBody();               // crea el avatar del personaje elegido
             ApplyBodyColor(bodyColorHex);
         }
@@ -144,6 +148,23 @@ namespace Geayi.Player
         {
             if (cc != null && cc.isGrounded)
                 jumpQueued = true;
+        }
+
+        // Vuelve a armar el avatar con el personaje elegido en FAMILIA
+        // (se llama al entrar a jugar, por si cambió la elección).
+        public void RebuildBody()
+        {
+            Transform old = transform.Find("Body");
+            if (old != null) Destroy(old.gameObject);
+            bodyRenderer = null;
+            EnsureBody();
+        }
+
+        // Regresa al punto de inicio del mundo
+        public void GoHome()
+        {
+            transform.rotation = spawnRot;
+            Teleport(spawnPos);
         }
 
         // Cambia el color del cuerpo (personalización del personaje)
