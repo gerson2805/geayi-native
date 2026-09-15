@@ -149,10 +149,15 @@ namespace Geayi.Core
         // Oculta el canvas del menú principal (si existe)
         private void HideMenu()
         {
-            GameObject menu = GameObject.Find("MainMenuCanvas");
-            if (menu != null) menu.SetActive(false);
-            GameObject mm = GameObject.Find("MainMenu");
-            if (mm != null) mm.SetActive(false);
+            // Referencia directa: GameObject.Find no ve objetos inactivos
+            if (UI.MainMenu.Instance != null) UI.MainMenu.Instance.SetMenuVisible(false);
+            else
+            {
+                GameObject menu = GameObject.Find("MainMenuCanvas");
+                if (menu != null) menu.SetActive(false);
+                GameObject mm = GameObject.Find("MainMenu");
+                if (mm != null) mm.SetActive(false);
+            }
             // Reactivar al jugador con el personaje recién elegido en FAMILIA
             var pcs = FindObjectsByType<PlayerController>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             if (pcs != null && pcs.Length > 0)
@@ -181,11 +186,15 @@ namespace Geayi.Core
             // Ocultar al jugador
             var pcs = FindObjectsByType<PlayerController>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             if (pcs != null && pcs.Length > 0) pcs[0].gameObject.SetActive(false);
-            // Mostrar el menú principal
-            GameObject menu = GameObject.Find("MainMenuCanvas");
-            if (menu != null) menu.SetActive(true);
-            GameObject mm = GameObject.Find("MainMenu");
-            if (mm != null) mm.SetActive(true);
+            // Mostrar el menú principal (referencia directa: Find no ve inactivos)
+            if (UI.MainMenu.Instance != null) UI.MainMenu.Instance.SetMenuVisible(true);
+            else
+            {
+                GameObject menu = GameObject.Find("MainMenuCanvas");
+                if (menu != null) menu.SetActive(true);
+                GameObject mm = GameObject.Find("MainMenu");
+                if (mm != null) mm.SetActive(true);
+            }
         }
 
         public void GoToMenu()
