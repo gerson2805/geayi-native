@@ -155,7 +155,10 @@ namespace Geayi.Player
         public void RebuildBody()
         {
             Transform old = transform.Find("Body");
-            if (old != null) Destroy(old.gameObject);
+            // DestroyImmediate (no Destroy): el Destroy normal es diferido al
+            // fin del frame, y EnsureBody() todavía encontraría el cuerpo viejo
+            // y no armaría el nuevo -> el muñeco quedaba invisible.
+            if (old != null) DestroyImmediate(old.gameObject);
             bodyRenderer = null;
             EnsureBody();
         }
