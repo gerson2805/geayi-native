@@ -1,7 +1,11 @@
 // CameraFollow.cs — cámara suave en tercera persona
 // Sigue al jugador con un offset, lo mira siempre y no atraviesa paredes
 // (usa un raycast simple para acercarse si hay algo en medio).
+// El ángulo de la cámara (yaw) es INDEPENDIENTE del giro del jugador,
+// como en la web: si la cámara girara con el jugador, los controles
+// relativos a la cámara se realimentan y el muñeco solo da vueltas.
 using UnityEngine;
+using Geayi.UI;
 
 namespace Geayi.Player
 {
@@ -24,6 +28,7 @@ namespace Geayi.Player
         public float minDistance = 2.5f;
 
         private bool snapped = false; // primer frame: colocarse directo, sin deslizar
+        private float camYaw; // ángulo propio de la cámara (no sigue el giro del jugador)
 
         void Start()
         {
@@ -31,6 +36,21 @@ namespace Geayi.Player
             {
                 GameObject p = GameObject.FindGameObjectWithTag("Player");
                 if (p != null) target = p.transform;
+            }
+            if (target != null)
+                camYaw = target.rotation.eulerAngles.y; // empieza detrás del jugador
+        }
+
+        void Update()
+        {
+            // Arrastrar con un dedo (que NO sea el del joystick) gira la cámara, como en la web.
+            // El segundo dedo gira mientras se camina con el primero.
+            for (int i = 0; i < Input.touchCount; i++)
+            {
+                Touch t = Input.GetTouch(i);
+                if (t.phase != TouchPhase.Moved) continue;
+                if (HUD.Instance != null && HUD.Instance.IsTouchOnJoystick(t.position)) continue;
+                camYaw -= t.deltaPosition.x * 0.25f;
             }
         }
 
@@ -41,8 +61,9 @@ namespace Geayi.Player
             // Punto al que mira la cámara (altura de la cabeza)
             Vector3 lookAt = target.position + Vector3.up * lookHeight;
 
-            // Posición deseada: detrás del jugador según hacia dónde mira
-            Vector3 desired = lookAt + target.rotation * offset;
+            // Posición deseada: detrás del jugador según el ángulo PROPIO de la cámara
+            // (no el giro del jugador: eso causaba que el muñeco diera vueltas sin control)
+            Vector3 desired = lookAt + Quaternion.Euler(0f, camYaw, 0f) * offset;
 
             // Raycast: si hay una pared entre el jugador y la cámara, acercarla
             Vector3 dir = desired - lookAt;
