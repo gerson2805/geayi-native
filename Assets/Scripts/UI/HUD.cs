@@ -156,7 +156,7 @@ namespace Geayi.UI
             // Botón de mascotas (encima del salto)
             GameObject petBtn = MakeButton(canvasGo.transform, new Color(0.35f, 0.20f, 0.60f),
                 new Vector2(0.80f, 0.30f), new Vector2(0.98f, 0.46f));
-            GameObject petLabel = UILabel.CreateLabel(petBtn.transform, "MASCOTA", 30, Color.white);
+            GameObject petLabel = UILabel.CreateLabel(petBtn.transform, "MASCOTA", 22, Color.white);
             StretchFull(petLabel.GetComponent<RectTransform>());
             petBtn.GetComponent<Button>().onClick.AddListener(() => onPetsPressed.Invoke());
 
@@ -172,13 +172,18 @@ namespace Geayi.UI
             });
 
             // Joystick virtual (abajo a la izquierda)
+            // Cuadrado fijo (320x320): con anclas proporcionales se deformaba a óvalo
             GameObject joyBase = new GameObject("Joystick");
             joyBase.transform.SetParent(canvasGo.transform, false);
             Image joyImg = joyBase.AddComponent<Image>();
             joyImg.sprite = UIShape.Circle();
             joyImg.color = new Color(1f, 1f, 1f, 0.25f);
-            Anchor(joyBase.GetComponent<RectTransform>(),
-                new Vector2(0.03f, 0.03f), new Vector2(0.33f, 0.33f));
+            RectTransform joyRt = joyBase.GetComponent<RectTransform>();
+            joyRt.anchorMin = new Vector2(0f, 0f);
+            joyRt.anchorMax = new Vector2(0f, 0f);
+            joyRt.pivot = new Vector2(0f, 0f);
+            joyRt.sizeDelta = new Vector2(320f, 320f);
+            joyRt.anchoredPosition = new Vector2(40f, 40f);
 
             GameObject knob = new GameObject("Knob");
             knob.transform.SetParent(joyBase.transform, false);
