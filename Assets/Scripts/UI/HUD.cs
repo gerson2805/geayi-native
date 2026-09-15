@@ -18,6 +18,9 @@ namespace Geayi.UI
         public float Horizontal { get; private set; }
         public float Vertical { get; private set; }
         public bool IsActive { get; private set; }
+        // ID del dedo que maneja el joystick (-1 = ninguno). En Unity el
+        // pointerId táctil es igual al fingerId del Touch.
+        public int ActivePointerId { get; private set; } = -1;
 
         [Tooltip("Distancia máxima de la palanca en píxeles")]
         public float radius = 110f;
@@ -34,6 +37,7 @@ namespace Geayi.UI
         public void OnPointerDown(PointerEventData eventData)
         {
             IsActive = true;
+            ActivePointerId = eventData.pointerId;
             OnDrag(eventData);
         }
 
@@ -57,7 +61,16 @@ namespace Geayi.UI
 
         public void OnPointerUp(PointerEventData eventData)
         {
+            ActivePointerId = -1;
             ClearInput();
+        }
+
+        // ¿Este dedo es el que maneja el joystick? La cámara lo usa para
+        // ignorarlo: al girar el dedo en 360° sale del cuadrado del joystick
+        // y antes la cámara creía que era un dedo de giro y se iba a otro lado.
+        public bool IsJoystickPointer(int pointerId)
+        {
+            return IsActive && ActivePointerId >= 0 && pointerId == ActivePointerId;
         }
 
         // Limpia el estado (al volver al menú a mitad de un arrastre)
@@ -66,6 +79,7 @@ namespace Geayi.UI
             Horizontal = 0f;
             Vertical = 0f;
             IsActive = false;
+            ActivePointerId = -1;
             if (knobRt != null)
                 knobRt.anchoredPosition = Vector2.zero;
         }
@@ -296,6 +310,9 @@ namespace Geayi.UI
             Image knobImg = knob.AddComponent<Image>();
             knobImg.sprite = UIShape.Circle();
             knobImg.color = new Color(1f, 1f, 1f, 0.60f);
+            // La palanca no intercepta el toque: el dedo siempre cae en la base
+            // (si no, tocar justo el centro no movía el joystick).
+            knobImg.raycastTarget = false;
             RectTransform knobRt = knob.GetComponent<RectTransform>();
             knobRt.anchorMin = new Vector2(0.5f, 0.5f);
             knobRt.anchorMax = new Vector2(0.5f, 0.5f);
