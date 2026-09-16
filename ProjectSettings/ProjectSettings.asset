@@ -18,3 +18,10 @@ PlayerSettings:
   defaultScreenWidth: 1280
   defaultScreenHeight: 720
   runInBackground: 1
+  # El juego es horizontal: al girar el teléfono la pantalla se queda en
+  # horizontal (las dos variantes) y el menú ya no se rompe.
+  defaultInterfaceOrientation: 4
+  allowedAutorotateToPortrait: 0
+  allowedAutorotateToPortraitUpsideDown: 0
+  allowedAutorotateToLandscapeRight: 1
+  allowedAutorotateToLandscapeLeft: 1
