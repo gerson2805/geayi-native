@@ -20,7 +20,7 @@ namespace Geayi.World
         private static Material coinMat;
         private static Mesh coinMesh;
 
-        public static void Spawn(Transform parent, Vector3 pos)
+        public static void Spawn(Transform parent, Vector3 pos, int coinValue = 5)
         {
             if (coinMesh == null)
             {
@@ -40,12 +40,15 @@ namespace Geayi.World
             GameObject go = new GameObject("Coin");
             go.transform.SetParent(parent);
             go.transform.position = pos;
+            // Moneda GRANDE y VERTICAL como la web (aro dorado de pie)
+            go.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
             var mf = go.AddComponent<MeshFilter>();
             mf.sharedMesh = coinMesh;
             var mr = go.AddComponent<MeshRenderer>();
             mr.sharedMaterial = coinMat;
             var cp = go.AddComponent<CoinPickup>();
             cp.basePos = pos;
+            cp.value = coinValue;
         }
 
         void Start()
@@ -57,14 +60,14 @@ namespace Geayi.World
                 powers = p.GetComponent<PlayerPowers>();
             }
             bobPhase = Random.Range(0f, Mathf.PI * 2f);
-            // Moneda acostada como disco, tamaño visible
-            transform.localScale = new Vector3(0.9f, 0.16f, 0.9f);
+            // Moneda grande de pie (1.3m de diámetro), como los aros de la web
+            transform.localScale = new Vector3(1.3f, 1.3f, 0.32f);
         }
 
         void Update()
         {
-            // Girar como las monedas de los videojuegos + flotar
-            transform.Rotate(0f, 180f * Time.deltaTime, 0f);
+            // Gira sobre su eje vertical como las monedas de la web + flota
+            transform.Rotate(Vector3.up, 200f * Time.deltaTime, Space.World);
             transform.position = basePos + new Vector3(0f, 0.25f + Mathf.Sin(Time.time * 2.5f + bobPhase) * 0.15f, 0f);
 
             if (playerTr == null || GameManager.Instance == null) return;
@@ -79,7 +82,7 @@ namespace Geayi.World
                 d = Vector3.Distance(transform.position, pp);
             }
 
-            if (d < 1.8f)
+            if (d < 2.2f)
             {
                 GameManager.Instance.AddCoins(value);
                 gameObject.SetActive(false); // recogida
