@@ -37,6 +37,7 @@ namespace Geayi.Player
         // Coyote time: permite saltar un instante después de salir de una orilla.
         private float jumpBufferTimer = 0f;
         private float coyoteTimer = 0f;
+        private PlayerPowers powers; // poderes (GIRO/BOLA/LUZ), puede ser nulo
         private Renderer bodyRenderer;
         private Vector3 spawnPos;
         private Quaternion spawnRot;
@@ -50,6 +51,8 @@ namespace Geayi.Player
             gameObject.tag = "Player";
             spawnPos = transform.position;   // punto de inicio (para volver al entrar)
             spawnRot = transform.rotation;
+            if (GetComponent<PlayerPowers>() == null)
+                gameObject.AddComponent<PlayerPowers>(); // poderes GIRO/BOLA/LUZ
             EnsureBody();               // crea el avatar del personaje elegido
             ApplyBodyColor(bodyColorHex);
         }
@@ -116,6 +119,8 @@ namespace Geayi.Player
 
             bool running = input.magnitude > runThreshold;
             float speed = running ? runSpeed : walkSpeed;
+            if (powers == null) powers = GetComponent<PlayerPowers>();
+            if (powers != null) speed *= powers.SpeedMultiplier; // poder GIRO
 
             // --- Dirección relativa a la cámara ---
             Vector3 dir = new Vector3(input.x, 0f, input.y);
@@ -150,7 +155,8 @@ namespace Geayi.Player
             if ((jumpBufferTimer > 0f || Input.GetButtonDown("Jump"))
                 && (cc.isGrounded || coyoteTimer > 0f))
             {
-                verticalVel.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
+                float jMul = (powers != null) ? powers.JumpMultiplier : 1f; // poder BOLA
+                verticalVel.y = Mathf.Sqrt(jumpHeight * jMul * -2f * gravity);
                 jumpBufferTimer = 0f;
                 coyoteTimer = 0f;
             }
