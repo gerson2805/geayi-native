@@ -210,6 +210,16 @@ namespace Geayi.World
             // Semáforo en la esquina del cruce
             BuildTrafficLight(bx + 1.5f, bz + 1.5f, block);
 
+            // Hidrante y botes de basura (modelos KayKit; si faltan no pasa nada)
+            TryModel("firehydrant", new Vector3(bx + 26f, 0f, bz + 0.6f), 0f, Vector3.one, block, true);
+            TryModel("trash_A", new Vector3(bx + 44f, 0f, bz + 0.6f), 0f, Vector3.one, block, true);
+            TryModel("trash_A", new Vector3(bx + 45.2f, 0f, bz + 0.6f), 45f, Vector3.one, block, true);
+
+            // Carros estacionados a la orilla de la calle (modelos KayKit)
+            TryModel("car_sedan", new Vector3(bx + 16f, 0f, bz - 2.2f), 90f, Vector3.one, block, true);
+            TryModel("car_taxi", new Vector3(bx + 38f, 0f, bz - 2.2f), 90f, Vector3.one, block, true);
+            TryModel("car_hatchback", new Vector3(bx + 27f, 0f, bz - 7.8f), -90f, Vector3.one, block, true);
+
             // Árboles
             BuildTree(bx + 18f, bz + 18f, block);
             BuildTree(bx + 31f, bz + 18f, block);
@@ -220,6 +230,16 @@ namespace Geayi.World
             // Edificios (unos con techo plano, otros con techo naranja como la web)
             BuildBuilding(bx + 20f, bz + 26f, 0, block, false);
             BuildBuilding(bx + 42f, bz + 44f, 3, block, true);
+
+            // Edificios de FONDO extra con modelos 3D KayKit (uno por cada dos bloques).
+            // Las tiendas con nombre y la señal ALTO siguen siendo procedurales con sus textos.
+            if ((ix + iz) % 2 == 0)
+            {
+                string[] bgModels = { "building_A", "building_B", "building_C", "building_D",
+                                      "building_E", "building_F", "building_G", "building_H" };
+                string bg = bgModels[(ix * 3 + iz) % bgModels.Length];
+                TryModel(bg, new Vector3(bx + 13f, 0f, bz + 44f), (ix % 2) * 90f, Vector3.one, block, true);
+            }
 
             // Tiendas con nombres
             BuildStore(bx + blockSize / 2f - 14f, bz + 9f, 0, "DELICIAS\nMICHOACANAS", block);
@@ -253,8 +273,49 @@ namespace Geayi.World
             return go;
         }
 
+        // Carga un modelo 3D KayKit desde Resources/KayKit. Si el modelo no existe
+        // o falla la carga, devuelve false y el llamador usa la versión procedural.
+        // REGLA DE ORO: nada se rompe por un modelo ausente.
+        private bool TryModel(string resName, Vector3 pos, float rotY, Vector3 scale,
+                              GameObject parent, bool solid)
+        {
+            GameObject prefab = null;
+            try { prefab = Resources.Load<GameObject>("KayKit/" + resName); }
+            catch { prefab = null; }
+            if (prefab == null) return false;
+            GameObject go;
+            try { go = Instantiate(prefab); }
+            catch { return false; }
+            go.name = "KayKit_" + resName;
+            go.transform.SetParent(parent != null ? parent.transform : transform, false);
+            go.transform.localPosition = pos;
+            go.transform.localRotation = Quaternion.Euler(0f, rotY, 0f);
+            go.transform.localScale = scale;
+            if (solid)
+            {
+                // Collider ajustado a los bounds reales del modelo
+                Renderer[] rs = go.GetComponentsInChildren<Renderer>();
+                if (rs.Length > 0)
+                {
+                    Bounds wb = rs[0].bounds;
+                    for (int i = 1; i < rs.Length; i++) wb.Encapsulate(rs[i].bounds);
+                    BoxCollider bc = go.AddComponent<BoxCollider>();
+                    Vector3 ls = go.transform.lossyScale;
+                    bc.center = go.transform.InverseTransformPoint(wb.center);
+                    bc.size = new Vector3(
+                        ls.x != 0f ? wb.size.x / ls.x : wb.size.x,
+                        ls.y != 0f ? wb.size.y / ls.y : wb.size.y,
+                        ls.z != 0f ? wb.size.z / ls.z : wb.size.z);
+                }
+            }
+            return true;
+        }
+
         private void BuildLamp(float x, float z, GameObject parent)
         {
+            // Modelo 3D KayKit; si falta, versión procedural de abajo
+            if (TryModel("streetlight", new Vector3(x, 0f, z), 0f, Vector3.one, parent, true))
+                return;
             GameObject lamp = new GameObject("Lamp");
             lamp.transform.SetParent(parent.transform, false);
             lamp.transform.localPosition = new Vector3(x, 0f, z);
@@ -289,10 +350,13 @@ namespace Geayi.World
             f.transform.localPosition = new Vector3(x, 0f, z);
             Part("Planter", cubeMesh, planterMat, new Vector3(0f, 0.35f, 0f),
                 new Vector3(2.4f, 0.7f, 1.2f), f, true);
-            Part("Bush", cubeMesh, leafMat, new Vector3(-0.55f, 1.05f, 0f),
-                new Vector3(1.0f, 0.9f, 0.9f), f);
-            Part("Bush2", cubeMesh, leafMat, new Vector3(0.55f, 1.05f, 0f),
-                new Vector3(1.0f, 0.9f, 0.9f), f);
+            // Arbustos: modelo 3D KayKit si existe, si no los de código
+            if (!TryModel("bush", new Vector3(-0.55f, 0.7f, 0f), 0f, Vector3.one, f, false))
+                Part("Bush", cubeMesh, leafMat, new Vector3(-0.55f, 1.05f, 0f),
+                    new Vector3(1.0f, 0.9f, 0.9f), f);
+            if (!TryModel("bush", new Vector3(0.55f, 0.7f, 0f), 90f, Vector3.one, f, false))
+                Part("Bush2", cubeMesh, leafMat, new Vector3(0.55f, 1.05f, 0f),
+                    new Vector3(1.0f, 0.9f, 0.9f), f);
             Part("Flower", sphMesh, flowerMat, new Vector3(-0.55f, 1.6f, 0f),
                 new Vector3(0.35f, 0.35f, 0.35f), f);
             Part("Flower2", sphMesh, flowerMat2, new Vector3(0.55f, 1.6f, 0f),
@@ -301,6 +365,9 @@ namespace Geayi.World
 
         private void BuildBench(float x, float z, GameObject parent)
         {
+            // Modelo 3D KayKit; si falta, versión procedural de abajo
+            if (TryModel("bench", new Vector3(x, 0f, z), 90f, Vector3.one, parent, true))
+                return;
             GameObject b = new GameObject("Bench");
             b.transform.SetParent(parent.transform, false);
             b.transform.localPosition = new Vector3(x, 0f, z);
@@ -316,6 +383,9 @@ namespace Geayi.World
 
         private void BuildTrafficLight(float x, float z, GameObject parent)
         {
+            // Modelo 3D KayKit; si falta, versión procedural de abajo
+            if (TryModel("trafficlight_A", new Vector3(x, 0f, z), 0f, Vector3.one, parent, true))
+                return;
             GameObject t = new GameObject("TrafficLight");
             t.transform.SetParent(parent.transform, false);
             t.transform.localPosition = new Vector3(x, 0f, z);
@@ -427,6 +497,9 @@ namespace Geayi.World
 
         private void BuildWaterTower(float x, float z)
         {
+            // Modelo 3D KayKit (escalado x2 para verse como el de la web); si falta, procedural
+            if (TryModel("watertower", new Vector3(x, 0f, z), 0f, Vector3.one * 2f, null, true))
+                return;
             GameObject t = new GameObject("WaterTower");
             t.transform.SetParent(transform, false);
             t.transform.localPosition = new Vector3(x, 0f, z);
