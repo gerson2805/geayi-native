@@ -159,7 +159,7 @@ namespace Geayi.Core
                 if (mm != null) mm.SetActive(false);
             }
             // Reactivar al jugador con el personaje recién elegido en FAMILIA
-            var pcs = FindObjectsByType<PlayerController>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            var pcs = FindObjectsByType<PlayerController>(FindObjectsInactive.Include);
             if (pcs != null && pcs.Length > 0)
             {
                 var pc = pcs[0];
@@ -184,7 +184,7 @@ namespace Geayi.Core
                 UI.HUD.Instance.SetVisible(false);
             }
             // Ocultar al jugador
-            var pcs = FindObjectsByType<PlayerController>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            var pcs = FindObjectsByType<PlayerController>(FindObjectsInactive.Include);
             if (pcs != null && pcs.Length > 0) pcs[0].gameObject.SetActive(false);
             // Mostrar el menú principal (referencia directa: Find no ve inactivos)
             if (UI.MainMenu.Instance != null) UI.MainMenu.Instance.SetMenuVisible(true);
