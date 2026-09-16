@@ -50,15 +50,16 @@ namespace Geayi.Player
             {
                 Touch t = Input.GetTouch(i);
                 if (t.phase != TouchPhase.Moved) continue;
-                // REGLA PRINCIPAL: mientras el joystick está activo, ningún dedo
-                // en la mitad izquierda de la pantalla gira la cámara. Al hacer
-                // el 360° el dedo viaja MUCHO más lejos del centro que la palanca
-                // (la palanca se limita a 130px, el dedo no), y antes eso se salía
-                // del radio de 320px y hacía girar la cámara sin control: el
-                // "arriba" del joystick dejaba de ser arriba en la pantalla.
-                // La cámara solo gira con dedos en la mitad derecha (como en la web,
-                // el segundo dedo gira la cámara mientras se camina).
-                if (joyActive && t.position.x < Screen.width * 0.5f) continue;
+                // REGLA PRINCIPAL: mientras el joystick está activo, la cámara
+                // queda BLOQUEADA: ningún dedo la gira. En el teléfono real,
+                // al hacer el 360° el segundo dedo (o la palma) roza la mitad
+                // derecha sin querer y el yaw se va a la deriva; después el
+                // "arriba" del joystick deja de ser arriba en la pantalla
+                // (izquierda/derecha siempre se sienten bien porque camRight
+                // es horizontal en pantalla). Antes solo se bloqueaba la
+                // mitad izquierda y la derecha seguía girando la cámara.
+                // La cámara se gira soltando el joystick y arrastrando.
+                if (joyActive) continue;
                 if (joyActive &&
                     Vector2.Distance(t.position, joy.CurrentBaseCenterScreenPos()) < 320f) continue;
                 if (joy != null && joy.IsJoystickPointer(t.fingerId)) continue;
