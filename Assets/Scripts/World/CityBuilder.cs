@@ -345,19 +345,35 @@ namespace Geayi.World
         {
             GameObject b = new GameObject("Building");
             b.transform.SetParent(parent.transform, false);
-            float w = 11f, d = 9f, h = 10f + (colorIdx % 3) * 2.5f;
-            Part("Body", cubeMesh, buildingMats[colorIdx % buildingMats.Length],
+            // Edificios ALTOS como los del video (3-5 pisos)
+            float w = 12f, d = 10f, h = 14f + (colorIdx % 3) * 3.5f;
+            Material bodyMat = MakeMat(new Color(0.72f, 0.45f, 0.35f)); // ladrillo
+            if (colorIdx % 2 == 0) bodyMat = buildingMats[colorIdx % buildingMats.Length];
+            Part("Body", cubeMesh, bodyMat,
                 new Vector3(cx, h / 2f, cz), new Vector3(w, h, d), b, true);
-            // Puerta al frente
-            Part("Door", cubeMesh, doorMat, new Vector3(cx, 1.1f, cz - d / 2f - 0.06f),
-                new Vector3(1.6f, 2.2f, 0.12f), b);
-            // Ventanas en dos filas
-            Material winMat = MakeMat(new Color(0.75f, 0.90f, 1.0f), 0.35f);
-            for (int row = 0; row < 2; row++)
-                for (int i = 0; i < 4; i++)
-                    Part("Win", cubeMesh, winMat,
-                        new Vector3(cx - w / 2f + 1.6f + i * 2.6f, 4.2f + row * 3.0f, cz - d / 2f - 0.06f),
-                        new Vector3(1.5f, 1.8f, 0.12f), b);
+            // Base de concreto
+            Part("Base", cubeMesh, curbMat,
+                new Vector3(cx, 0.6f, cz), new Vector3(w + 0.4f, 1.2f, d + 0.4f), b, true);
+            // Puerta de vidrio al frente
+            Material glassMat = MakeMat(new Color(0.65f, 0.85f, 0.95f), 0.45f);
+            Part("Door", cubeMesh, glassMat, new Vector3(cx, 1.5f, cz - d / 2f - 0.06f),
+                new Vector3(2.4f, 3.0f, 0.12f), b);
+            // Franjas de vidrio en los 4 lados, piso por piso (como el video)
+            int floors = Mathf.FloorToInt(h / 3.4f);
+            for (int f = 0; f < floors; f++)
+            {
+                float wy = 4.6f + f * 3.4f;
+                // Sur y norte
+                Part("WinS", cubeMesh, glassMat, new Vector3(cx, wy, cz - d / 2f - 0.06f),
+                    new Vector3(w * 0.86f, 1.9f, 0.12f), b);
+                Part("WinN", cubeMesh, glassMat, new Vector3(cx, wy, cz + d / 2f + 0.06f),
+                    new Vector3(w * 0.86f, 1.9f, 0.12f), b);
+                // Este y oeste
+                Part("WinE", cubeMesh, glassMat, new Vector3(cx + w / 2f + 0.06f, wy, cz),
+                    new Vector3(0.12f, 1.9f, d * 0.86f), b);
+                Part("WinW", cubeMesh, glassMat, new Vector3(cx - w / 2f - 0.06f, wy, cz),
+                    new Vector3(0.12f, 1.9f, d * 0.86f), b);
+            }
             if (gableRoof)
             {
                 // Techo naranja a dos aguas (como las casas de la web)
