@@ -260,9 +260,18 @@ namespace Geayi.UI
                 try
                 {
                     onPowerPressed.Invoke();
-                    ShowHudToast(string.IsNullOrEmpty(CurrentPowerName())
-                        ? "Sin poder equipado"
-                        : "Poder: " + CurrentPowerName());
+                    // Activar el poder equipado (se compra en TIENDA)
+                    var p = Player;
+                    string msg;
+                    if (p != null)
+                    {
+                        var pp = p.GetComponent<Geayi.Player.PlayerPowers>();
+                        if (pp == null) pp = p.gameObject.AddComponent<Geayi.Player.PlayerPowers>();
+                        msg = pp.Activate();
+                    }
+                    else msg = "Error: sin jugador";
+                    ShowHudToast(msg);
+                    RefreshPower();
                 }
                 catch (System.Exception e) { ShowHudToast("Error: " + e.Message); }
             });
