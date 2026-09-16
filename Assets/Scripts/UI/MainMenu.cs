@@ -128,6 +128,7 @@ namespace Geayi.UI
 
         private GameObject toastObj;
         private float toastTimer = 0f;
+        private GameObject coinsLabel; // monedas en el menú (para la tienda)
 
         // Panel de familia (elegir personaje)
         private GameObject familyPanel;
@@ -135,6 +136,11 @@ namespace Geayi.UI
         private GameObject familyPageLabel;
         private int familyPage = 0;
         private const int FamilyPerPage = 8;
+
+        // Panel TIENDA (comprar y equipar poderes)
+        private GameObject shopPanel;
+        private GameObject shopCoinsLabel;
+        private GameObject shopCardsRoot;
 
         // Previsualización 3D de los personajes (una foto por celda)
         private const int PREVIEW_LAYER = 30; // capa que la cámara principal no ve
@@ -154,6 +160,7 @@ namespace Geayi.UI
         public void SetMenuVisible(bool visible)
         {
             if (menuCanvasGo != null) menuCanvasGo.SetActive(visible);
+            if (visible) RefreshMenuCoins(); // monedas actualizadas al volver
             gameObject.SetActive(visible);
         }
 
@@ -169,68 +176,91 @@ namespace Geayi.UI
 
         private void BuildMenu()
         {
-            // Canvas principal
+            // Canvas principal — HORIZONTAL NATIVO (el juego está bloqueado en
+            // horizontal; la referencia vertical anterior deformaba el menú).
             GameObject canvasGo = new GameObject("MainMenuCanvas");
             menuCanvasGo = canvasGo; // referencia directa para mostrar/ocultar
             Canvas canvas = canvasGo.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 10; // igual que el HUD (patrón verificado)
             CanvasScaler scaler = canvasGo.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(720, 1280); // diseño vertical (móvil)
+            scaler.referenceResolution = new Vector2(1280, 720); // diseño horizontal
+            scaler.matchWidthOrHeight = 1f; // anclar a la altura
             canvasGo.AddComponent<GraphicRaycaster>();
 
-            // Fondo oscuro
+            // Fondo oscuro + franja GEAYI arriba
             GameObject bg = new GameObject("Background");
             bg.transform.SetParent(canvasGo.transform, false);
-            bg.AddComponent<Image>().color = new Color(0.08f, 0.10f, 0.20f);
+            bg.AddComponent<Image>().color = new Color(0.07f, 0.09f, 0.18f);
             StretchFull(bg.GetComponent<RectTransform>());
 
-            // Título
-            GameObject title = UILabel.CreateLabel(canvasGo.transform, gameTitle, 54, Color.white);
-            RectTransform trt = title.GetComponent<RectTransform>();
-            trt.anchorMin = new Vector2(0.05f, 0.78f);
-            trt.anchorMax = new Vector2(0.95f, 0.93f);
-            trt.offsetMin = Vector2.zero;
-            trt.offsetMax = Vector2.zero;
+            GameObject topBar = new GameObject("TopBar");
+            topBar.transform.SetParent(canvasGo.transform, false);
+            topBar.AddComponent<Image>().color = new Color(0.15f, 0.45f, 0.95f);
+            Anchor(topBar.GetComponent<RectTransform>(),
+                new Vector2(0f, 0.88f), new Vector2(1f, 1f));
 
-            // Botones principales (texto simple: la fuente de Android no trae emoji)
+            // Título
+            GameObject title = UILabel.CreateLabel(canvasGo.transform, gameTitle, 60, Color.white);
+            Anchor(title.GetComponent<RectTransform>(),
+                new Vector2(0.05f, 0.885f), new Vector2(0.95f, 0.995f));
+
+            // Monedas (para comprar poderes en TIENDA)
+            coinsLabel = UILabel.CreateLabel(canvasGo.transform, "MONEDAS: 0", 30, Color.yellow);
+            Anchor(coinsLabel.GetComponent<RectTransform>(),
+                new Vector2(0.02f, 0.76f), new Vector2(0.32f, 0.85f));
+            RefreshMenuCoins();
+
+            // Botones principales (columna centrada, proporciones horizontales)
             string[] names = { "JUGAR", "MODO CONSTRUIR", "FAMILIA", "TIENDA", "AJUSTES" };
+            Color[] colors = {
+                new Color(0.15f, 0.70f, 0.30f),
+                new Color(0.95f, 0.55f, 0.15f),
+                new Color(0.55f, 0.30f, 0.85f),
+                new Color(0.95f, 0.78f, 0.15f),
+                new Color(0.45f, 0.47f, 0.55f),
+            };
             for (int i = 0; i < names.Length; i++)
             {
                 int idx = i; // copia para el listener
-                Button b = CreateButton(canvasGo.transform, names[i], 0.68f - i * 0.11f);
+                float yc = 0.63f - i * 0.115f;
+                Button b = CreateButton(canvasGo.transform, names[i], 34, colors[i],
+                    new Vector2(0.35f, yc - 0.05f), new Vector2(0.65f, yc + 0.05f));
                 b.onClick.AddListener(() => OnButton(idx));
             }
 
             // Mensaje corto ("toast")
-            toastObj = UILabel.CreateLabel(canvasGo.transform, "", 30, Color.yellow);
-            RectTransform tort = toastObj.GetComponent<RectTransform>();
-            tort.anchorMin = new Vector2(0.1f, 0.05f);
-            tort.anchorMax = new Vector2(0.9f, 0.12f);
-            tort.offsetMin = Vector2.zero;
-            tort.offsetMax = Vector2.zero;
+            toastObj = UILabel.CreateLabel(canvasGo.transform, "", 28, Color.yellow);
+            Anchor(toastObj.GetComponent<RectTransform>(),
+                new Vector2(0.1f, 0.02f), new Vector2(0.9f, 0.09f));
             toastObj.SetActive(false);
 
             BuildFamilyPanel(canvasGo.transform);
+            BuildShopPanel(canvasGo.transform);
         }
 
-        private Button CreateButton(Transform parent, string text, float yCenter)
+        private Button CreateButton(Transform parent, string text, int fontSize, Color color, Vector2 anchorMin, Vector2 anchorMax)
         {
             GameObject go = new GameObject("Btn");
             go.transform.SetParent(parent, false);
             Image img = go.AddComponent<Image>();
             img.sprite = UIShape.Rounded();
-            img.color = new Color(0.15f, 0.45f, 0.95f);
+            img.color = color;
             Button b = go.AddComponent<Button>();
-            RectTransform rt = go.GetComponent<RectTransform>();
-            rt.anchorMin = new Vector2(0.2f, yCenter - 0.045f);
-            rt.anchorMax = new Vector2(0.8f, yCenter + 0.045f);
-            rt.offsetMin = Vector2.zero;
-            rt.offsetMax = Vector2.zero;
+            Anchor(go.GetComponent<RectTransform>(), anchorMin, anchorMax);
 
-            GameObject label = UILabel.CreateLabel(go.transform, text, 34, Color.white);
+            GameObject label = UILabel.CreateLabel(go.transform, text, fontSize, Color.white);
             StretchFull(label.GetComponent<RectTransform>());
             return b;
+        }
+
+        private void Anchor(RectTransform rt, Vector2 min, Vector2 max)
+        {
+            rt.anchorMin = min;
+            rt.anchorMax = max;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
         }
 
         private void StretchFull(RectTransform rt)
@@ -255,9 +285,116 @@ namespace Geayi.UI
                 case 2: // FAMILIA (elegir personaje)
                     OpenFamilyPanel();
                     break;
-                default: // TIENDA, AJUSTES
+                case 3: // TIENDA (comprar y equipar poderes)
+                    OpenShopPanel();
+                    break;
+                default: // AJUSTES
                     ShowToast("Disponible pronto");
                     break;
+            }
+        }
+
+        public void RefreshMenuCoins()
+        {
+            int c = (GameManager.Instance != null) ? GameManager.Instance.Coins : 0;
+            if (coinsLabel != null) UILabel.SetText(coinsLabel, "MONEDAS: " + c);
+            if (shopCoinsLabel != null) UILabel.SetText(shopCoinsLabel, "MONEDAS: " + c);
+        }
+
+        // ---------------- Panel TIENDA: poderes ----------------
+        private void BuildShopPanel(Transform parent)
+        {
+            shopPanel = new GameObject("ShopPanel");
+            shopPanel.transform.SetParent(parent, false);
+            shopPanel.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.88f);
+            StretchFull(shopPanel.GetComponent<RectTransform>());
+
+            var title = UILabel.CreateLabel(shopPanel.transform, "TIENDA DE PODERES", 44, Color.white);
+            Anchor(title.GetComponent<RectTransform>(),
+                new Vector2(0.05f, 0.82f), new Vector2(0.95f, 0.93f));
+
+            shopCoinsLabel = UILabel.CreateLabel(shopPanel.transform, "MONEDAS: 0", 30, Color.yellow);
+            Anchor(shopCoinsLabel.GetComponent<RectTransform>(),
+                new Vector2(0.05f, 0.74f), new Vector2(0.95f, 0.81f));
+
+            shopCardsRoot = new GameObject("ShopCards");
+            shopCardsRoot.transform.SetParent(shopPanel.transform, false);
+            // OJO: un GameObject nuevo trae Transform normal; hay que convertirlo
+            // a RectTransform o los hijos salen con tamaño cero.
+            StretchFull(shopCardsRoot.AddComponent<RectTransform>());
+
+            Button close = CreateButton(shopPanel.transform, "CERRAR", 30,
+                new Color(0.70f, 0.25f, 0.25f),
+                new Vector2(0.40f, 0.05f), new Vector2(0.60f, 0.15f));
+            close.onClick.AddListener(() => shopPanel.SetActive(false));
+
+            shopPanel.SetActive(false);
+        }
+
+        private void OpenShopPanel()
+        {
+            if (shopPanel == null) return;
+            RefreshShop();
+            shopPanel.SetActive(true);
+        }
+
+        private void RefreshShop()
+        {
+            if (shopCardsRoot == null) return;
+            for (int i = shopCardsRoot.transform.childCount - 1; i >= 0; i--)
+                Destroy(shopCardsRoot.transform.GetChild(i).gameObject);
+            for (int i = 0; i < Geayi.Player.PlayerPowers.Catalog.Length; i++)
+            {
+                var def = Geayi.Player.PlayerPowers.Catalog[i];
+                float x0 = 0.04f + i * 0.32f;
+                MakeShopCard(shopCardsRoot.transform, def, x0, x0 + 0.30f);
+            }
+            RefreshMenuCoins();
+        }
+
+        private void MakeShopCard(Transform parent, Geayi.Player.PlayerPowers.PowerDef def, float x0, float x1)
+        {
+            GameObject card = new GameObject("Card_" + def.id);
+            card.transform.SetParent(parent, false);
+            Image img = card.AddComponent<Image>();
+            img.sprite = UIShape.Rounded();
+            img.color = new Color(0.12f, 0.16f, 0.32f);
+            Anchor(card.GetComponent<RectTransform>(),
+                new Vector2(x0, 0.20f), new Vector2(x1, 0.70f));
+
+            var name = UILabel.CreateLabel(card.transform, def.shortName, 36, Color.white);
+            Anchor(name.GetComponent<RectTransform>(),
+                new Vector2(0.05f, 0.68f), new Vector2(0.95f, 0.95f));
+
+            var desc = UILabel.CreateLabel(card.transform, def.description, 22,
+                new Color(0.85f, 0.88f, 0.95f));
+            Anchor(desc.GetComponent<RectTransform>(),
+                new Vector2(0.05f, 0.36f), new Vector2(0.95f, 0.64f));
+
+            bool owned = Geayi.Player.PlayerPowers.IsOwned(def.id);
+            bool equipped = SaveSystem.Instance != null
+                && SaveSystem.Instance.Data.equippedPower == def.id;
+            string btnText = !owned ? "COMPRAR $" + def.price
+                : (equipped ? "EQUIPADO" : "EQUIPAR");
+            Color btnColor = !owned ? new Color(0.95f, 0.70f, 0.15f)
+                : (equipped ? new Color(0.15f, 0.70f, 0.30f) : new Color(0.15f, 0.45f, 0.95f));
+            Button b = CreateButton(card.transform, btnText, 26, btnColor,
+                new Vector2(0.08f, 0.08f), new Vector2(0.92f, 0.30f));
+            if (!owned)
+            {
+                b.onClick.AddListener(() =>
+                {
+                    ShowToast(Geayi.Player.PlayerPowers.Buy(def.id));
+                    RefreshShop();
+                });
+            }
+            else if (!equipped)
+            {
+                b.onClick.AddListener(() =>
+                {
+                    Geayi.Player.PlayerPowers.Equip(def.id);
+                    RefreshShop();
+                });
             }
         }
 
