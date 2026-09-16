@@ -19,6 +19,10 @@ namespace Geayi.Player
         [Header("Salto y gravedad")]
         public float jumpHeight = 2.2f;
         public float gravity = -22f;
+        [Tooltip("Tiempo que se guarda un toque de SALTAR (seg)")]
+        public float jumpBufferTime = 0.15f;
+        [Tooltip("Gracia para saltar justo después de salir de una orilla (seg)")]
+        public float coyoteTime = 0.1f;
 
         [Header("Referencias")]
         public Transform cameraTransform;
@@ -28,7 +32,11 @@ namespace Geayi.Player
 
         private CharacterController cc;
         private Vector3 verticalVel;
-        private bool jumpQueued = false;
+        // Buffer de salto: el botón SALTAR guarda la petición unos frames para
+        // que no se pierda si el toque cae cuando isGrounded aún es falso.
+        // Coyote time: permite saltar un instante después de salir de una orilla.
+        private float jumpBufferTimer = 0f;
+        private float coyoteTimer = 0f;
         private Renderer bodyRenderer;
         private Vector3 spawnPos;
         private Quaternion spawnRot;
@@ -129,16 +137,24 @@ namespace Geayi.Player
                 transform.rotation = Quaternion.Slerp(transform.rotation, look, 12f * Time.deltaTime);
             }
 
-            // --- Gravedad y salto ---
+            // --- Gravedad y salto (con buffer + coyote time) ---
             if (cc.isGrounded)
             {
                 if (verticalVel.y < 0f) verticalVel.y = -2f; // pegado al suelo
-                if (jumpQueued || Input.GetButtonDown("Jump"))
-                {
-                    verticalVel.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
-                }
+                coyoteTimer = coyoteTime;
             }
-            jumpQueued = false;
+            else
+            {
+                coyoteTimer -= Time.deltaTime;
+            }
+            if ((jumpBufferTimer > 0f || Input.GetButtonDown("Jump"))
+                && (cc.isGrounded || coyoteTimer > 0f))
+            {
+                verticalVel.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
+                jumpBufferTimer = 0f;
+                coyoteTimer = 0f;
+            }
+            jumpBufferTimer -= Time.deltaTime;
             verticalVel.y += gravity * Time.deltaTime;
             cc.Move(verticalVel * Time.deltaTime);
 
@@ -148,11 +164,12 @@ namespace Geayi.Player
                 Teleport(spawnPos);
         }
 
-        // Lo llama el botón de salto del HUD
+        // Lo llama el botón de salto del HUD.
+        // Siempre guarda la petición: el buffer la consume en Update cuando
+        // haya suelo (antes se descartaba si isGrounded era falso ese frame).
         public void TryJump()
         {
-            if (cc != null && cc.isGrounded)
-                jumpQueued = true;
+            jumpBufferTimer = jumpBufferTime;
         }
 
         // Vuelve a armar el avatar con el personaje elegido en FAMILIA
