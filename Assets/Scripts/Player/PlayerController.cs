@@ -10,8 +10,8 @@ namespace Geayi.Player
     public class PlayerController : MonoBehaviour
     {
         [Header("Velocidades")]
-        public float walkSpeed = 5f;
-        public float runSpeed = 9f;
+        public float walkSpeed = 6.5f;
+        public float runSpeed = 13f;
         [Tooltip("Si el joystick pasa este valor (0-1), el personaje corre")]
         [Range(0.5f, 1f)]
         public float runThreshold = 0.85f;
