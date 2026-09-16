@@ -159,9 +159,15 @@ namespace Geayi.World
             BuildWaterTower(cityW * 0.72f, cityD * 0.78f);
             BuildClouds();
 
-            var sm = GetComponent<StreamingManager>();
-            if (sm == null) sm = gameObject.AddComponent<StreamingManager>();
-            sm.streamables = streamables;
+            // Registrar bloques en el StreamingManager (solo muestra lo cercano)
+            if (StreamingManager.Instance == null)
+                new GameObject("StreamingManager").AddComponent<StreamingManager>();
+            foreach (GameObject b in streamables)
+                StreamingManager.Instance.RegisterObject(b, b.transform.position);
+            streamables.Clear();
+            GameObject p = GameObject.FindGameObjectWithTag("Player");
+            if (p != null)
+                StreamingManager.Instance.SetPlayer(p.transform);
         }
 
         private void BuildBlock(float bx, float bz, int ix, int iz)
