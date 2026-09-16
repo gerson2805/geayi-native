@@ -15,6 +15,7 @@ namespace Geayi.World
         public static CityBuilder Instance;
 
         private readonly List<GameObject> streamables = new List<GameObject>();
+        private readonly List<Vector3> streamableCenters = new List<Vector3>();
 
         private Material asphaltMat, sidewalkMat, curbMat, grassMat;
         private Material laneMat, crossMat;
@@ -149,7 +150,7 @@ namespace Geayi.World
             // Base de pasto
             GameObject ground = Part("Ground", cubeMesh, grassMat,
                 new Vector3(cityW / 2f, -0.55f, cityD / 2f),
-                new Vector3(cityW + streetWidth, 1f, cityD + streetWidth), null);
+                new Vector3(cityW + streetWidth, 1f, cityD + streetWidth), null, true);
             ground.GetComponent<Collider>().enabled = true;
 
             for (int ix = 0; ix < blocks; ix++)
@@ -162,9 +163,10 @@ namespace Geayi.World
             // Registrar bloques en el StreamingManager (solo muestra lo cercano)
             if (StreamingManager.Instance == null)
                 new GameObject("StreamingManager").AddComponent<StreamingManager>();
-            foreach (GameObject b in streamables)
-                StreamingManager.Instance.RegisterObject(b, b.transform.position);
+            for (int i = 0; i < streamables.Count; i++)
+                StreamingManager.Instance.RegisterObject(streamables[i], streamableCenters[i]);
             streamables.Clear();
+            streamableCenters.Clear();
             GameObject p = GameObject.FindGameObjectWithTag("Player");
             if (p != null)
                 StreamingManager.Instance.SetPlayer(p.transform);
@@ -251,6 +253,7 @@ namespace Geayi.World
                 CoinPickup.Spawn(block.transform, new Vector3(bx + 10f + i * 14f, 0.9f, bz - streetWidth / 2f), 5);
 
             streamables.Add(block);
+            streamableCenters.Add(new Vector3(bx + blockSize / 2f, 0f, bz + blockSize / 2f));
         }
 
         // ---------------- piezas ----------------
